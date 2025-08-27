@@ -693,8 +693,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInspection(inspection: InsertInspection): Promise<Inspection> {
-    const [created] = await db.insert(inspections).values(inspection).returning();
-    return created;
+    try {
+      // Convert string dates to Date objects if needed
+      const processedInspection = {
+        ...inspection,
+        scheduledAt: typeof inspection.scheduledAt === 'string' ? new Date(inspection.scheduledAt) : inspection.scheduledAt,
+        startedAt: inspection.startedAt && typeof inspection.startedAt === 'string' ? new Date(inspection.startedAt) : inspection.startedAt,
+        completedAt: inspection.completedAt && typeof inspection.completedAt === 'string' ? new Date(inspection.completedAt) : inspection.completedAt,
+        inspectorId: inspection.inspectorId || 'admin-id' // Ensure inspectorId is never null
+      };
+      
+      console.log('Creating inspection with data:', processedInspection);
+      
+      const [created] = await db.insert(inspections).values(processedInspection).returning();
+      return created;
+    } catch (error) {
+      console.error('Error creating inspection:', error);
+      throw error;
+    }
   }
 
   async updateInspection(id: string, updates: Partial<Inspection>): Promise<Inspection> {

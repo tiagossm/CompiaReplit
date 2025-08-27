@@ -220,7 +220,11 @@ export const insertInvitationSchema = createInsertSchema(invitations).omit({
   expiresAt: true
 });
 
-export const insertInspectionSchema = createInsertSchema(inspections).omit({
+export const insertInspectionSchema = createInsertSchema(inspections, {
+  scheduledAt: z.coerce.date().optional(),
+  startedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional()
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
