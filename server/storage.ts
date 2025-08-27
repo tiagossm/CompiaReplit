@@ -66,6 +66,13 @@ export interface IStorage {
   updateChecklistTemplate(id: string, updates: Partial<ChecklistTemplate>): Promise<ChecklistTemplate>;
   deleteChecklistTemplate(id: string): Promise<void>;
   
+  // Checklist Folders
+  getChecklistFolder(id: string): Promise<ChecklistFolder | undefined>;
+  getChecklistFoldersByOrganization(organizationId: string): Promise<ChecklistFolder[]>;
+  createChecklistFolder(folder: InsertChecklistFolder): Promise<ChecklistFolder>;
+  updateChecklistFolder(id: string, updates: Partial<ChecklistFolder>): Promise<ChecklistFolder>;
+  deleteChecklistFolder(id: string): Promise<void>;
+  
   // Activity Logs
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
   getActivityLogsByOrganization(organizationId: string, limit?: number): Promise<ActivityLog[]>;
@@ -509,6 +516,82 @@ export class MemStorage implements IStorage {
 // DatabaseStorage implementation
 
 export class DatabaseStorage implements IStorage {
+  constructor() {
+    this.initializeDefaultData();
+  }
+
+  async initializeDefaultData() {
+    try {
+      // Create default master organization if not exists
+      const existingOrgs = await db.select().from(organizations).limit(1);
+      if (existingOrgs.length === 0) {
+        const masterOrg = await db.insert(organizations).values({
+          id: 'master-org-id',
+          name: 'COMPIA Master',
+          type: 'master',
+          parentId: null,
+          plan: 'enterprise',
+          maxUsers: 1000,
+          maxSubsidiaries: 100,
+          isActive: true,
+          email: 'admin@compia.app',
+          cnpj: '00.000.000/0001-00'
+        }).returning();
+
+        // Create default admin user
+        await db.insert(users).values({
+          id: 'admin-id',
+          email: 'admin@iasst.com',
+          name: 'System Administrator',
+          role: 'system_admin',
+          organizationId: masterOrg[0].id,
+          isActive: true
+        }).returning();
+
+        // Create sample checklist templates
+        await db.insert(checklistTemplates).values([
+          {
+            id: 'template-nr10',
+            name: 'Inspeção NR-10 - Segurança em Instalações Elétricas',
+            description: 'Template para inspeção de segurança em instalações e serviços em eletricidade',
+            category: 'NR-10',
+            organizationId: masterOrg[0].id,
+            items: [
+              { type: 'checkbox', label: 'Desenergização', required: true },
+              { type: 'checkbox', label: 'Travamento e etiquetagem', required: true },
+              { type: 'checkbox', label: 'Teste de ausência de tensão', required: true },
+              { type: 'text', label: 'Observações gerais', required: false }
+            ],
+            tags: ['eletricidade', 'segurança', 'nr10'],
+            isActive: true,
+            isDefault: true,
+            createdBy: 'admin-id'
+          },
+          {
+            id: 'template-nr35',
+            name: 'Trabalho em Altura - NR-35',
+            description: 'Checklist para trabalhos em altura conforme NR-35',
+            category: 'NR-35',
+            organizationId: masterOrg[0].id,
+            items: [
+              { type: 'checkbox', label: 'EPIs adequados para altura', required: true },
+              { type: 'checkbox', label: 'Análise preliminar de risco', required: true },
+              { type: 'checkbox', label: 'Sistema de proteção contra quedas', required: true },
+              { type: 'text', label: 'Altura do trabalho (metros)', required: true }
+            ],
+            tags: ['altura', 'epi', 'nr35'],
+            isActive: true,
+            isDefault: true,
+            createdBy: 'admin-id'
+          }
+        ]).returning();
+        
+        console.log('Default data initialized successfully');
+      }
+    } catch (error) {
+      console.error('Error initializing default data:', error);
+    }
+  }
   // Organizations
   async getOrganization(id: string): Promise<Organization | undefined> {
     const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
@@ -701,6 +784,33 @@ export class DatabaseStorage implements IStorage {
     await db.update(checklistTemplates)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(checklistTemplates.id, id));
+  }
+
+  // Checklist Folders
+  async getChecklistFolder(id: string): Promise<ChecklistFolder | undefined> {
+    const [folder] = await db.select().from(checklistFolders).where(eq(checklistFolders.id, id));
+    return folder;
+  }
+
+  async getChecklistFoldersByOrganization(organizationId: string): Promise<ChecklistFolder[]> {
+    return await db.select().from(checklistFolders).where(eq(checklistFolders.organizationId, organizationId));
+  }
+
+  async createChecklistFolder(folder: InsertChecklistFolder): Promise<ChecklistFolder> {
+    const [created] = await db.insert(checklistFolders).values(folder).returning();
+    return created;
+  }
+
+  async updateChecklistFolder(id: string, updates: Partial<ChecklistFolder>): Promise<ChecklistFolder> {
+    const [updated] = await db.update(checklistFolders)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(checklistFolders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteChecklistFolder(id: string): Promise<void> {
+    await db.delete(checklistFolders).where(eq(checklistFolders.id, id));
   }
 
   // Activity Logs

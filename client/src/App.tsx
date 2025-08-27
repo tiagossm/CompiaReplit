@@ -63,6 +63,7 @@ function Router() {
       <Route path="/inspections/new" component={() => <AppLayout><NewInspection /></AppLayout>} />
       <Route path="/inspections/:id" component={() => <AppLayout><InspectionDetail /></AppLayout>} />
       <Route path="/checklists" component={() => <AppLayout><ChecklistTemplatesV2 /></AppLayout>} />
+      <Route path="/checklist-templates" component={() => <AppLayout><ChecklistTemplatesV2 /></AppLayout>} />
       <Route path="/checklists/ai-generator" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
       <Route path="/checklists/csv-import" component={() => <AppLayout><CSVImport /></AppLayout>} />
       <Route path="/checklists/builder" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
