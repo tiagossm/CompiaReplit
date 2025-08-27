@@ -58,7 +58,7 @@ export default function Checklists() {
   const [editingTemplate, setEditingTemplate] = useState<ChecklistTemplate | null>(null);
 
   const { data: templates, isLoading } = useQuery<ChecklistTemplate[]>({
-    queryKey: ['/api/checklist-templates', selectedCategory === "todos" ? {} : { category: selectedCategory }],
+    queryKey: selectedCategory === "todos" ? ['/api/checklist-templates'] : ['/api/checklist-templates', { category: selectedCategory }],
   });
 
   const createMutation = useMutation({

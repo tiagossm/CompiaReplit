@@ -106,12 +106,9 @@ export default function ChecklistBuilder() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/checklist-templates', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...templateInfo,
-          fields: fields.map(({ id, ...field }) => field)
-        })
+      return apiRequest('/api/checklist-templates', 'POST', {
+        ...templateInfo,
+        fields: fields.map(({ id, ...field }) => field)
       });
     },
     onSuccess: (data) => {

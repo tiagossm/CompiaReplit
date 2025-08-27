@@ -80,7 +80,7 @@ export default function InspectionForm({ inspectionId, initialData, onSuccess, m
     mutationFn: async (data: InspectionFormData) => {
       const endpoint = mode === 'edit' ? `/api/inspections/${inspectionId}` : '/api/inspections';
       const method = mode === 'edit' ? 'PATCH' : 'POST';
-      const response = await apiRequest(method, endpoint, data);
+      const response = await apiRequest(endpoint, method, data);
       return response.json();
     },
     onSuccess: (inspection) => {

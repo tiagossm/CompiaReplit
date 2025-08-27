@@ -52,7 +52,7 @@ export default function Users() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, updates }: { userId: string; updates: Partial<User> }) => {
-      const response = await apiRequest('PATCH', `/api/users/${userId}`, updates);
+      const response = await apiRequest(`/api/users/${userId}`, 'PATCH', updates);
       return response.json();
     },
     onSuccess: (updatedUser) => {
@@ -73,7 +73,7 @@ export default function Users() {
 
   const deleteInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      const response = await apiRequest('DELETE', `/api/invitations/${invitationId}`);
+      const response = await apiRequest(`/api/invitations/${invitationId}`, 'DELETE');
       return response.json();
     },
     onSuccess: () => {

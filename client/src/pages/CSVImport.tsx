@@ -131,12 +131,9 @@ Prazo para Correção,date,não,,Data limite para implementação`;
 
   const aiGenerateMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/checklist-templates/generate-from-prompt', {
-        method: 'POST',
-        body: JSON.stringify({
-          prompt: aiPrompt,
-          format: 'csv'
-        })
+      return apiRequest('/api/checklist-templates/generate-from-prompt', 'POST', {
+        prompt: aiPrompt,
+        format: 'csv'
       });
     },
     onSuccess: (data) => {
@@ -159,14 +156,11 @@ Prazo para Correção,date,não,,Data limite para implementação`;
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/checklist-templates/import-csv', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: templateName,
-          category,
-          csvData,
-          fields: preview
-        })
+      return apiRequest('/api/checklist-templates/import-csv', 'POST', {
+        name: templateName,
+        category,
+        csvData,
+        fields: preview
       });
     },
     onSuccess: (data) => {

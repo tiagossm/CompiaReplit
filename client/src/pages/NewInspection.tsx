@@ -32,10 +32,7 @@ export default function NewInspection() {
   // Create inspection mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/inspections', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
+      return apiRequest('/api/inspections', 'POST', formData);
     },
     onSuccess: (data) => {
       toast({

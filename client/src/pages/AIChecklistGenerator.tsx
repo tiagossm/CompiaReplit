@@ -72,13 +72,10 @@ export default function AIChecklistGenerator() {
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/checklist-templates/generate-ai', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...formData,
-          detail_level: 'detalhado',
-          priority_focus: 'seguranca'
-        })
+      return apiRequest('/api/checklist-templates/generate-ai', 'POST', {
+        ...formData,
+        detail_level: 'detalhado',
+        priority_focus: 'seguranca'
       });
     },
     onSuccess: (data) => {

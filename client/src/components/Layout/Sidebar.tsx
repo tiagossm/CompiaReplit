@@ -92,19 +92,19 @@ export default function Sidebar() {
           const isActive = location === item.href || location.startsWith(item.href + '/');
           
           return (
-            <Link key={item.href} href={item.href}>
-              <a 
-                className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-primary/10 text-primary border-r-3 border-primary" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                )}
-                data-testid={`nav-item-${item.href.replace('/', '')}`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.title}</span>
-              </a>
+            <Link 
+              key={item.href} 
+              href={item.href}
+              className={cn(
+                "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                isActive 
+                  ? "bg-primary/10 text-primary border-r-3 border-primary" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              data-testid={`nav-item-${item.href.replace('/', '')}`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{item.title}</span>
             </Link>
           );
         })}
@@ -121,19 +121,19 @@ export default function Sidebar() {
               const isActive = location === item.href || location.startsWith(item.href + '/');
               
               return (
-                <Link key={item.href} href={item.href}>
-                  <a 
-                    className={cn(
-                      "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      isActive 
-                        ? "bg-primary/10 text-primary border-r-3 border-primary" 
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                    data-testid={`admin-item-${item.href.replace('/', '')}`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.title}</span>
-                  </a>
+                <Link 
+                  key={item.href} 
+                  href={item.href}
+                  className={cn(
+                    "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    isActive 
+                      ? "bg-primary/10 text-primary border-r-3 border-primary" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  data-testid={`admin-item-${item.href.replace('/', '')}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.title}</span>
                 </Link>
               );
             })}

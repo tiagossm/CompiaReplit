@@ -33,9 +33,7 @@ export default function InspectionDetail() {
   // Start inspection mutation
   const startMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/inspections/${id}/start`, {
-        method: 'POST'
-      });
+      return apiRequest(`/api/inspections/${id}/start`, 'POST');
     },
     onSuccess: () => {
       toast({
@@ -49,10 +47,7 @@ export default function InspectionDetail() {
   // Complete inspection mutation
   const completeMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/inspections/${id}/complete`, {
-        method: 'POST',
-        body: JSON.stringify({ responses })
-      });
+      return apiRequest(`/api/inspections/${id}/complete`, 'POST', { responses });
     },
     onSuccess: () => {
       toast({
@@ -67,9 +62,7 @@ export default function InspectionDetail() {
   // AI Analysis mutation
   const analysisMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/inspections/${id}/analyze`, {
-        method: 'POST'
-      });
+      return apiRequest(`/api/inspections/${id}/analyze`, 'POST');
     },
     onSuccess: () => {
       toast({

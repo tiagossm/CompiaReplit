@@ -1,0 +1,46 @@
+Console.js:61 Warning: validateDOMNesting(...): %s cannot appear as a descendant of <%s>.%s <a> a 
+    at 7e9d8a9d-0ae3-4649-a…plit.dev/__replco/a
+    at 7e9d8a9d-0ae3-4649-a…plit.dev/__replco/a
+    at wouter.js:279:18
+    at 7e9d8a9d-0ae3-4649-a…it.dev/__replco/nav
+    at 7e9d8a9d-0ae3-4649-a….dev/__replco/aside
+    at Sidebar (7e9d8a9d-0ae3-4649-a…t/Sidebar.tsx:25:22)
+    at 7e9d8a9d-0ae3-4649-a…it.dev/__replco/div
+    at AppLayout (7e9d8a9d-0ae3-4649-a…yMZuH9tACTggt:41:22)
+    at 7e9d8a9d-0ae3-4649-a…/__replco/component
+    at Route (wouter.js:265:16)
+    at Switch (wouter.js:321:17)
+    at 7e9d8a9d-0ae3-4649-a…dev/__replco/Router
+    at Provider (chunk-PLT6GTVM.js:38:15)
+    at TooltipProvider (@radix-ui_react-tooltip.js:63:5)
+    at QueryClientProvider (@tanstack_react-query.js:2805:3)
+    at 7e9d8a9d-0ae3-4649-a…it.dev/__replco/App
+
+7e9d8a9d-0ae3-4649-a…[object%20Object]:1 
+ Failed to load resource: the server responded with a status of 404 (Not Found)
+Console.js:61 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+Console.js:61 Warning: validateDOMNesting(...): <a> cannot appear as a descendant of <a>.
+    at a
+    at a
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=79e94fe1:279:18
+    at nav
+    at aside
+    at Sidebar (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/Layout/Sidebar.tsx:25:22)
+    at div
+    at AppLayout (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/App.tsx?v=JQBoQPCAoxvf7ABJqXDsB:41:22)
+    at component
+    at Route (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=79e94fe1:265:16)
+    at Switch (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=79e94fe1:321:17)
+    at Router
+    at Provider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=79e94fe1:38:15)
+    at TooltipProvider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=79e94fe1:63:5)
+    at QueryClientProvider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=79e94fe1:2805:3)
+    at App
+m.stripe.com/6:1 
+ Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+Network.js:219 Uncaught (in promise) TypeError: Failed to execute 'fetch' on 'Window': '/api/checklist-templates/generate-ai' is not a valid HTTP method.
+    at Object.apply (injected.js:253:39)
+    at apiRequest (queryClient.ts:15:21)
+    at Object.mutationFn (AIChecklistGenerator.tsx:75:14)
+﻿
+

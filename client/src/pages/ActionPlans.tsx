@@ -82,7 +82,7 @@ export default function ActionPlans() {
     mutationFn: async (data: ActionPlanFormData) => {
       const endpoint = selectedActionPlan ? `/api/action-plans/${selectedActionPlan.id}` : '/api/action-plans';
       const method = selectedActionPlan ? 'PATCH' : 'POST';
-      const response = await apiRequest(method, endpoint, data);
+      const response = await apiRequest(endpoint, method, data);
       return response.json();
     },
     onSuccess: (actionPlan) => {
@@ -106,7 +106,7 @@ export default function ActionPlans() {
 
   const generateRecommendationMutation = useMutation({
     mutationFn: async (finding: any) => {
-      const response = await apiRequest('POST', '/api/action-plans/generate', { finding });
+      const response = await apiRequest('/api/action-plans/generate', 'POST', { finding });
       return response.json();
     },
     onSuccess: (recommendations) => {
