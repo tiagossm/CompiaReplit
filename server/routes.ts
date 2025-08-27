@@ -766,7 +766,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           Tipos disponíveis: text, textarea, select, multiselect, checkbox, radio, boolean, date, time, datetime, number, rating, file, signature, location
           
           Para campos com opções (select, radio, multiselect), separe as opções com pipe (|).
-          Retorne apenas o CSV, sem formatação adicional.`
+          
+          IMPORTANTE: Retorne APENAS o conteúdo CSV puro, sem markdown, sem explicações e sem formatação adicional.`
         }]
       });
       

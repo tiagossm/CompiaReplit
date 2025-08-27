@@ -87,6 +87,9 @@ Prazo para Correção,date,não,,Data limite para implementação`;
 
   const parseCSV = (data: string) => {
     try {
+      if (!data || typeof data !== 'string') {
+        throw new Error('Dados CSV inválidos');
+      }
       const lines = data.trim().split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       
@@ -137,8 +140,13 @@ Prazo para Correção,date,não,,Data limite para implementação`;
       });
     },
     onSuccess: (data) => {
-      setCsvData(data.csv);
-      parseCSV(data.csv);
+      // Remove markdown formatting if present
+      let cleanCsv = data.csv;
+      if (cleanCsv.includes('```csv')) {
+        cleanCsv = cleanCsv.replace(/```csv\n?/g, '').replace(/```/g, '');
+      }
+      setCsvData(cleanCsv);
+      parseCSV(cleanCsv);
       setShowAiDialog(false);
       toast({
         title: "CSV Gerado com IA",
