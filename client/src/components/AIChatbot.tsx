@@ -31,15 +31,12 @@ export default function AIChatbot() {
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      return apiRequest('/api/ai/chatbot', {
-        method: 'POST',
-        body: JSON.stringify({
-          message,
-          context: {
-            page: window.location.pathname,
-            previousMessages: messages.slice(-5) // Send last 5 messages for context
-          }
-        })
+      return apiRequest('/api/ai/chatbot', 'POST', {
+        message,
+        context: {
+          page: window.location.pathname,
+          previousMessages: messages.slice(-5) // Send last 5 messages for context
+        }
       });
     },
     onSuccess: (data) => {
