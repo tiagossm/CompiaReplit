@@ -144,15 +144,36 @@ export const files = pgTable("files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const checklistFolders = pgTable("checklist_folders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  parentId: varchar("parent_id").references((): typeof checklistFolders.id => checklistFolders.id),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  icon: text("icon").default("folder"),
+  color: text("color").default("#3B82F6"),
+  order: integer("order").default(0),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const checklistTemplates = pgTable("checklist_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
-  category: text("category").notNull(), // "geral", "nr-06", "nr-10", "nr-12", etc
+  category: text("category").notNull(),
+  folderId: varchar("folder_id").references(() => checklistFolders.id),
   organizationId: varchar("organization_id").notNull().references(() => organizations.id),
-  items: jsonb("items").notNull(), // Array of checklist items
+  items: jsonb("items").notNull(),
+  tags: text("tags").array(),
+  version: integer("version").default(1),
+  parentTemplateId: varchar("parent_template_id").references((): typeof checklistTemplates.id => checklistTemplates.id),
   isActive: boolean("is_active").default(true),
   isDefault: boolean("is_default").default(false),
+  isPublic: boolean("is_public").default(false),
+  usageCount: integer("usage_count").default(0),
+  lastUsedAt: timestamp("last_used_at"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
@@ -211,10 +232,18 @@ export const insertFileSchema = createInsertSchema(files).omit({
   createdAt: true
 });
 
-export const insertChecklistTemplateSchema = createInsertSchema(checklistTemplates).omit({
+export const insertChecklistFolderSchema = createInsertSchema(checklistFolders).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+});
+
+export const insertChecklistTemplateSchema = createInsertSchema(checklistTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  usageCount: true,
+  lastUsedAt: true
 });
 
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
@@ -240,6 +269,9 @@ export type InsertActionPlan = z.infer<typeof insertActionPlanSchema>;
 
 export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
+
+export type ChecklistFolder = typeof checklistFolders.$inferSelect;
+export type InsertChecklistFolder = z.infer<typeof insertChecklistFolderSchema>;
 
 export type ChecklistTemplate = typeof checklistTemplates.$inferSelect;
 export type InsertChecklistTemplate = z.infer<typeof insertChecklistTemplateSchema>;
@@ -285,6 +317,41 @@ export const createChecklistTemplateSchema = insertChecklistTemplateSchema.exten
     standard: z.string().optional(),
     category: z.string().optional(),
     description: z.string().optional(),
-    isRequired: z.boolean().default(false)
+    isRequired: z.boolean().default(false),
+    referenceImage: z.string().optional(),
+    helpText: z.string().optional(),
+    weight: z.number().default(1)
   }))
+});
+
+export const aiAnalysisResultSchema = z.object({
+  overallScore: z.number().min(0).max(100),
+  riskLevel: z.enum(["low", "medium", "high", "critical"]),
+  findings: z.array(z.object({
+    category: z.string(),
+    description: z.string(),
+    severity: z.enum(["low", "medium", "high", "critical"]),
+    recommendation: z.string(),
+    standard: z.string().optional(),
+    estimatedCost: z.number().optional(),
+    estimatedTime: z.string().optional()
+  })),
+  insights: z.array(z.object({
+    type: z.enum(["pattern", "trend", "risk", "opportunity"]),
+    title: z.string(),
+    description: z.string(),
+    confidence: z.number().min(0).max(1)
+  })),
+  recommendations: z.array(z.object({
+    priority: z.enum(["low", "medium", "high", "urgent"]),
+    action: z.string(),
+    deadline: z.string(),
+    responsibleRole: z.string(),
+    expectedOutcome: z.string()
+  })),
+  complianceStatus: z.object({
+    overallCompliance: z.number().min(0).max(100),
+    violations: z.array(z.string()),
+    improvements: z.array(z.string())
+  })
 });

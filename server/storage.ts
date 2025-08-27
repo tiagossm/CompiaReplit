@@ -6,7 +6,8 @@ import {
   type ActionPlan, type InsertActionPlan,
   type File, type InsertFile,
   type ActivityLog, type InsertActivityLog,
-  type ChecklistTemplate, type InsertChecklistTemplate
+  type ChecklistTemplate, type InsertChecklistTemplate,
+  type ChecklistFolder, type InsertChecklistFolder
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -71,6 +72,7 @@ export class MemStorage implements IStorage {
   private inspections = new Map<string, Inspection>();
   private actionPlans = new Map<string, ActionPlan>();
   private files = new Map<string, File>();
+  private checklistFolders = new Map<string, ChecklistFolder>();
   private checklistTemplates = new Map<string, ChecklistTemplate>();
   private activityLogs: ActivityLog[] = [];
 
