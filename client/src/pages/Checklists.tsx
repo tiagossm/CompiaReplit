@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { CheckSquare, Plus, Edit, Trash2, Copy, Search, Filter, Eye } from "lucide-react";
+import { CheckSquare, Plus, Edit, Trash2, Copy, Search, Filter, Eye, Folder, FolderPlus, Brain, Upload, FileText, Users, Lock, Download, Settings, Award } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, hasPermission } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -52,8 +53,27 @@ export default function Checklists() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+        setShowCreateMenu(false);
+      }
+    };
+
+    if (showCreateMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showCreateMenu]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ChecklistTemplate | null>(null);
 
@@ -138,14 +158,103 @@ export default function Checklists() {
           </p>
         </div>
         {canCreateTemplates && (
-          <div className="flex gap-2">
+          <div className="relative" ref={createMenuRef}>
+            <Button
+              onClick={() => setShowCreateMenu(!showCreateMenu)}
+              className="bg-compia-blue hover:bg-compia-blue/90"
+              data-testid="create-menu"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Criar Checklist
+            </Button>
+            
+            {showCreateMenu && (
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                <div className="p-4 space-y-2">
+                  <h3 className="font-medium text-sm text-gray-500 uppercase tracking-wider mb-3">Métodos de Criação</h3>
+                  
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      navigate('/checklists/csv-import');
+                      setShowCreateMenu(false);
+                    }}
+                  >
+                    <Upload className="w-5 h-5 mr-3 text-green-500" />
+                    <div className="text-left">
+                      <div className="font-medium">Importar CSV</div>
+                      <div className="text-sm text-gray-500">Faça upload de um arquivo CSV</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      navigate('/checklists/ai-generator');
+                      setShowCreateMenu(false);
+                    }}
+                  >
+                    <Brain className="w-5 h-5 mr-3 text-purple-500" />
+                    <div className="text-left">
+                      <div className="font-medium">IA Assistida</div>
+                      <div className="text-sm text-gray-500">Cole CSV e converse com IA</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      navigate('/checklists/ai-generator?mode=generate');
+                      setShowCreateMenu(false);
+                    }}
+                  >
+                    <Award className="w-5 h-5 mr-3 text-blue-500" />
+                    <div className="text-left">
+                      <div className="font-medium">IA Generativa</div>
+                      <div className="text-sm text-gray-500">IA cria checklist do zero</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      navigate('/checklists/builder');
+                      setShowCreateMenu(false);
+                    }}
+                  >
+                    <FileText className="w-5 h-5 mr-3 text-orange-500" />
+                    <div className="text-left">
+                      <div className="font-medium">Manual</div>
+                      <div className="text-sm text-gray-500">Construa no estilo Google Forms</div>
+                    </div>
+                  </Button>
+                  
+                  <div className="border-t pt-2 mt-3">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start h-auto p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      onClick={() => {
+                        setEditingTemplate(null);
+                        setIsDialogOpen(true);
+                        setShowCreateMenu(false);
+                      }}
+                    >
+                      <FolderPlus className="w-5 h-5 mr-3 text-gray-500" />
+                      <div className="text-left">
+                        <div className="font-medium">Nova Pasta</div>
+                        <div className="text-sm text-gray-500">Organize checklists</div>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-compia-blue hover:bg-compia-blue/90" data-testid="create-template">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Template
-                </Button>
-              </DialogTrigger>
               <ChecklistTemplateDialog
                 template={editingTemplate}
                 onSubmit={(data) => {
@@ -158,21 +267,6 @@ export default function Checklists() {
                 isSubmitting={createMutation.isPending || updateMutation.isPending}
               />
             </Dialog>
-            <a href="/checklists/import">
-              <Button variant="outline" data-testid="import-csv">
-                Importar CSV
-              </Button>
-            </a>
-            <a href="/checklists/ai-generate">
-              <Button variant="outline" data-testid="ai-generate">
-                Gerar com IA
-              </Button>
-            </a>
-            <a href="/checklists/new">
-              <Button variant="outline" data-testid="builder">
-                Construtor Manual
-              </Button>
-            </a>
           </div>
         )}
       </div>
