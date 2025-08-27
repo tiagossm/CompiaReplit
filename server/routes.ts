@@ -1,0 +1,533 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { 
+  insertOrganizationSchema, insertUserSchema, insertInvitationSchema,
+  insertInspectionSchema, insertActionPlanSchema, acceptInviteSchema,
+  createInspectionSchema, updateInspectionSchema
+} from "@shared/schema";
+import { authenticateUser, hasPermission, canAccessOrganization, filterByOrganizationAccess } from "./services/auth";
+import { analyzeInspectionFindings, generateActionPlanRecommendations, generateComplianceInsights } from "./services/openai";
+import { generateQRCode, generateInspectionReport, generateComplianceReport, calculateComplianceMetrics, generateInviteToken, isTokenValid } from "./services/documents";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Middleware for authentication (simplified - in production use proper auth)
+  const requireAuth = async (req: any, res: any, next: any) => {
+    const userEmail = req.headers['x-user-email'] || 'admin@iasst.com'; // Simplified auth
+    const user = await authenticateUser(userEmail as string);
+    
+    if (!user) {
+      return res.status(401).json({ message: "Não autorizado" });
+    }
+    
+    req.user = user;
+    next();
+  };
+
+  // Organizations routes
+  app.get('/api/organizations', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      let organizations = await storage.getOrganizations();
+      
+      // Filter by access permissions
+      if (user.role !== 'system_admin') {
+        organizations = organizations.filter(org => 
+          org.id === user.organizationId || org.parentId === user.organizationId
+        );
+      }
+      
+      res.json(organizations);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/organizations', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      
+      if (!hasPermission(user, 'create_organization')) {
+        return res.status(403).json({ message: "Sem permissão para criar organizações" });
+      }
+      
+      const orgData = insertOrganizationSchema.parse(req.body);
+      const organization = await storage.createOrganization(orgData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: organization.id,
+        action: 'create_organization',
+        entityType: 'organization',
+        entityId: organization.id,
+        details: { name: organization.name, type: organization.type }
+      });
+      
+      res.status(201).json(organization);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get('/api/organizations/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      if (!canAccessOrganization(user, id)) {
+        return res.status(403).json({ message: "Sem permissão para acessar esta organização" });
+      }
+      
+      const organization = await storage.getOrganization(id);
+      if (!organization) {
+        return res.status(404).json({ message: "Organização não encontrada" });
+      }
+      
+      res.json(organization);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Users routes
+  app.get('/api/users', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId } = req.query;
+      
+      let users;
+      if (organizationId) {
+        if (!canAccessOrganization(user, organizationId as string)) {
+          return res.status(403).json({ message: "Sem permissão para acessar usuários desta organização" });
+        }
+        users = await storage.getUsersByOrganization(organizationId as string);
+      } else {
+        if (user.role === 'system_admin') {
+          users = await storage.getUsersByOrganization(user.organizationId!);
+        } else {
+          users = await storage.getUsersByOrganization(user.organizationId!);
+        }
+      }
+      
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Invitations routes
+  app.post('/api/invitations', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      
+      if (!hasPermission(user, 'invite_user')) {
+        return res.status(403).json({ message: "Sem permissão para convidar usuários" });
+      }
+      
+      const inviteData = insertInvitationSchema.parse({
+        ...req.body,
+        invitedBy: user.id
+      });
+      
+      const invitation = await storage.createInvitation(inviteData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: invitation.organizationId,
+        action: 'invite_user',
+        entityType: 'invitation',
+        entityId: invitation.id,
+        details: { email: invitation.email, role: invitation.role }
+      });
+      
+      res.status(201).json(invitation);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/invitations/accept', async (req, res) => {
+    try {
+      const { token, userInfo } = acceptInviteSchema.parse(req.body);
+      
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Convite não encontrado" });
+      }
+      
+      if (invitation.isAccepted) {
+        return res.status(400).json({ message: "Convite já foi aceito" });
+      }
+      
+      if (!isTokenValid(invitation.expiresAt)) {
+        return res.status(400).json({ message: "Convite expirado" });
+      }
+      
+      // Create user
+      const user = await storage.createUser({
+        email: userInfo.email,
+        name: userInfo.name,
+        role: invitation.role,
+        organizationId: invitation.organizationId,
+        isActive: true
+      });
+      
+      // Mark invitation as accepted
+      await storage.updateInvitation(invitation.id, { isAccepted: true });
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: user.organizationId!,
+        action: 'accept_invitation',
+        entityType: 'user',
+        entityId: user.id,
+        details: { email: user.email, role: user.role }
+      });
+      
+      res.json({ user, message: "Convite aceito com sucesso" });
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Inspections routes
+  app.get('/api/inspections', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId } = req.query;
+      
+      let inspections;
+      if (organizationId && canAccessOrganization(user, organizationId as string)) {
+        inspections = await storage.getInspectionsByOrganization(organizationId as string);
+      } else if (user.role === 'inspector') {
+        inspections = await storage.getInspectionsByInspector(user.id);
+      } else {
+        inspections = await storage.getInspectionsByOrganization(user.organizationId!);
+      }
+      
+      // Filter by permissions
+      inspections = await filterByOrganizationAccess(user, inspections);
+      
+      res.json(inspections);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/inspections', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      
+      if (!hasPermission(user, 'create_inspection')) {
+        return res.status(403).json({ message: "Sem permissão para criar inspeções" });
+      }
+      
+      const inspectionData = createInspectionSchema.parse({
+        ...req.body,
+        organizationId: user.organizationId,
+        inspectorId: user.id
+      });
+      
+      const inspection = await storage.createInspection(inspectionData);
+      
+      // Generate QR code for inspection
+      const qrData = `${process.env.BASE_URL || 'http://localhost:5000'}/inspections/${inspection.id}`;
+      const qrCode = await generateQRCode(qrData);
+      
+      // Update inspection with QR code
+      const updatedInspection = await storage.updateInspection(inspection.id, { qrCode });
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: user.organizationId!,
+        action: 'create_inspection',
+        entityType: 'inspection',
+        entityId: inspection.id,
+        details: { title: inspection.title, location: inspection.location }
+      });
+      
+      res.status(201).json(updatedInspection);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.patch('/api/inspections/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!hasPermission(user, 'edit_inspection') && inspection.inspectorId !== user.id) {
+        return res.status(403).json({ message: "Sem permissão para editar esta inspeção" });
+      }
+      
+      const updates = updateInspectionSchema.parse(req.body);
+      
+      // If findings are provided, analyze with AI
+      if (updates.findings && updates.findings.length > 0) {
+        try {
+          const analysis = await analyzeInspectionFindings({
+            title: inspection.title,
+            location: inspection.location,
+            description: inspection.description || undefined,
+            checklist: inspection.checklist as any[],
+            findings: updates.findings
+          });
+          
+          updates.recommendations = analysis.summary;
+          (updates as any).aiAnalysis = JSON.stringify(analysis);
+        } catch (aiError) {
+          console.error("AI analysis failed:", aiError);
+          // Continue without AI analysis if it fails
+        }
+      }
+      
+      const updatedInspection = await storage.updateInspection(id, updates);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: inspection.organizationId,
+        action: 'update_inspection',
+        entityType: 'inspection',
+        entityId: id,
+        details: { status: updates.status, findingsCount: updates.findings?.length }
+      });
+      
+      res.json(updatedInspection);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Action Plans routes
+  app.get('/api/action-plans', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { inspectionId, organizationId } = req.query;
+      
+      let actionPlans;
+      if (inspectionId) {
+        actionPlans = await storage.getActionPlansByInspection(inspectionId as string);
+      } else if (organizationId && canAccessOrganization(user, organizationId as string)) {
+        actionPlans = await storage.getActionPlansByOrganization(organizationId as string);
+      } else {
+        actionPlans = await storage.getActionPlansByOrganization(user.organizationId!);
+      }
+      
+      // Filter by permissions
+      actionPlans = await filterByOrganizationAccess(user, actionPlans);
+      
+      res.json(actionPlans);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/action-plans', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      
+      if (!hasPermission(user, 'manage_action_plans')) {
+        return res.status(403).json({ message: "Sem permissão para criar planos de ação" });
+      }
+      
+      const planData = insertActionPlanSchema.parse({
+        ...req.body,
+        organizationId: user.organizationId
+      });
+      
+      const actionPlan = await storage.createActionPlan(planData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: user.organizationId!,
+        action: 'create_action_plan',
+        entityType: 'action_plan',
+        entityId: actionPlan.id,
+        details: { title: actionPlan.title, priority: actionPlan.priority }
+      });
+      
+      res.status(201).json(actionPlan);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/action-plans/generate', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { finding } = req.body;
+      
+      if (!hasPermission(user, 'manage_action_plans')) {
+        return res.status(403).json({ message: "Sem permissão para gerar planos de ação" });
+      }
+      
+      const recommendations = await generateActionPlanRecommendations(finding);
+      
+      res.json(recommendations);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Dashboard and Analytics routes
+  app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId } = req.query;
+      
+      const targetOrgId = organizationId as string || user.organizationId!;
+      
+      if (!canAccessOrganization(user, targetOrgId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar dados desta organização" });
+      }
+      
+      const inspections = await storage.getInspectionsByOrganization(targetOrgId);
+      const actionPlans = await storage.getActionPlansByOrganization(targetOrgId);
+      const users = await storage.getUsersByOrganization(targetOrgId);
+      const organizations = await storage.getOrganizationsByParent(targetOrgId);
+      
+      const metrics = calculateComplianceMetrics(inspections, actionPlans);
+      
+      const stats = {
+        inspections: inspections.length,
+        nonCompliances: metrics.nonCompliances,
+        completedActions: metrics.completedActions,
+        activeOrganizations: organizations.length + 1, // Include current org
+        complianceRate: metrics.complianceRate,
+        actionCompletionRate: metrics.actionCompletionRate,
+        overdueActions: metrics.overdueActions,
+        activeUsers: users.filter(u => u.isActive).length
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get('/api/dashboard/insights', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId } = req.query;
+      
+      const targetOrgId = organizationId as string || user.organizationId!;
+      
+      if (!canAccessOrganization(user, targetOrgId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar insights desta organização" });
+      }
+      
+      const inspections = await storage.getInspectionsByOrganization(targetOrgId);
+      const actionPlans = await storage.getActionPlansByOrganization(targetOrgId);
+      
+      const metrics = calculateComplianceMetrics(inspections, actionPlans);
+      
+      const insights = await generateComplianceInsights({
+        inspections: inspections.length,
+        nonCompliances: metrics.nonCompliances,
+        completedActions: metrics.completedActions,
+        period: "Últimos 30 dias"
+      });
+      
+      res.json(insights);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Reports routes
+  app.get('/api/reports/inspection/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!canAccessOrganization(user, inspection.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar este relatório" });
+      }
+      
+      const actionPlans = await storage.getActionPlansByInspection(id);
+      const report = generateInspectionReport(inspection, actionPlans);
+      
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get('/api/reports/compliance', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId } = req.query;
+      
+      const targetOrgId = organizationId as string || user.organizationId!;
+      
+      if (!canAccessOrganization(user, targetOrgId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar este relatório" });
+      }
+      
+      const organization = await storage.getOrganization(targetOrgId);
+      const inspections = await storage.getInspectionsByOrganization(targetOrgId);
+      const actionPlans = await storage.getActionPlansByOrganization(targetOrgId);
+      
+      const metrics = calculateComplianceMetrics(inspections, actionPlans);
+      
+      const report = generateComplianceReport(organization, {
+        inspections,
+        actionPlans,
+        stats: {
+          ...metrics,
+          periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+          periodEnd: new Date(),
+          complianceTrend: "stable" // This would be calculated from historical data
+        }
+      });
+      
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Activity logs
+  app.get('/api/activity-logs', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId, limit } = req.query;
+      
+      const targetOrgId = organizationId as string || user.organizationId!;
+      
+      if (!canAccessOrganization(user, targetOrgId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar logs desta organização" });
+      }
+      
+      const logs = await storage.getActivityLogsByOrganization(
+        targetOrgId, 
+        limit ? parseInt(limit as string) : undefined
+      );
+      
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
