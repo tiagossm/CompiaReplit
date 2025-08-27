@@ -338,7 +338,7 @@ export default function ChecklistTemplatesV2() {
               if ('is_category_folder' in item && item.is_category_folder) {
                 enterFolder(item as CategoryFolder);
               } else {
-                navigate(`/checklists/${item.id}`);
+                navigate(`/checklists/view/${item.id}`);
               }
             }}
           >
@@ -400,7 +400,7 @@ export default function ChecklistTemplatesV2() {
                       className="h-6 w-6"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/checklists/${item.id}`);
+                        navigate(`/checklists/view/${item.id}`);
                       }}
                     >
                       <Eye className="w-3 h-3" />

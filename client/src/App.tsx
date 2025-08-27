@@ -12,6 +12,7 @@ import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
 import Checklists from "@/pages/Checklists";
 import ChecklistTemplatesV2 from "@/pages/ChecklistTemplatesV2";
+import ChecklistDetail from "@/pages/ChecklistDetail";
 import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
 import CSVImport from "@/pages/CSVImport";
 import ChecklistBuilder from "@/pages/ChecklistBuilder";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/checklists/ai-generator" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
       <Route path="/checklists/csv-import" component={() => <AppLayout><CSVImport /></AppLayout>} />
       <Route path="/checklists/builder" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
+      <Route path="/checklists/view/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
       <Route path="/checklists/:id" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
