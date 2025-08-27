@@ -317,9 +317,11 @@ export class OpenAIAssistantsService {
 
       // Wait for completion
       let runStatus = await this.client.beta.threads.runs.retrieve(thread.id, run.id);
-      while (runStatus.status !== 'completed' && runStatus.status !== 'failed') {
+      let attempts = 0;
+      while (runStatus.status !== 'completed' && runStatus.status !== 'failed' && attempts < 30) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         runStatus = await this.client.beta.threads.runs.retrieve(thread.id, run.id);
+        attempts++;
       }
 
       if (runStatus.status === 'failed') {
@@ -331,9 +333,10 @@ export class OpenAIAssistantsService {
       const assistantMessage = messages.data.find(m => m.role === 'assistant');
       
       if (assistantMessage && assistantMessage.content[0].type === 'text') {
+        const assistantInfo = ASSISTANTS[assistantKey as keyof typeof ASSISTANTS];
         return {
           analysis: assistantMessage.content[0].text.value,
-          assistant: ASSISTANTS[assistantKey].name,
+          assistant: assistantInfo?.name || 'Assistant',
           threadId: thread.id
         };
       }

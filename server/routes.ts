@@ -678,14 +678,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Chatbot route
   app.post('/api/ai/chatbot', requireAuth, async (req, res) => {
     try {
-      if (!assistantsService) {
-        return res.status(503).json({ message: "Serviço de IA não disponível" });
-      }
+      const { simpleAI } = await import('./services/simple-ai');
+      const { message } = req.body;
+      const response = await simpleAI.chatResponse(message);
       
-      const { message, context } = req.body;
-      const result = await assistantsService.chatbotResponse(message, context);
-      
-      res.json({ response: result.analysis });
+      res.json({ response });
     } catch (error) {
       console.error('Chatbot error:', error);
       res.status(500).json({ message: "Erro ao processar mensagem" });
@@ -721,9 +718,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiResponse = result.analysis;
       } else {
         // Use regular OpenAI completion
-        // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         const completion = await openai.chat.completions.create({
-          model: "gpt-5",
+          model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
           response_format: { type: "json_object" }
         });
@@ -758,9 +754,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { prompt } = req.body;
       
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
       const completion = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o-mini",
         messages: [{
           role: "user",
           content: `${prompt}
