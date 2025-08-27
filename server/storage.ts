@@ -10,6 +10,12 @@ import {
   type ChecklistFolder, type InsertChecklistFolder
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { 
+  organizations, users, invitations, inspections, actionPlans, 
+  files, checklistTemplates, checklistFolders, activityLogs 
+} from "@shared/schema";
+import { eq, and, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Organizations
@@ -500,4 +506,215 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// DatabaseStorage implementation
+
+export class DatabaseStorage implements IStorage {
+  // Organizations
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    return org;
+  }
+
+  async getOrganizations(): Promise<Organization[]> {
+    return await db.select().from(organizations);
+  }
+
+  async getOrganizationsByParent(parentId: string | null): Promise<Organization[]> {
+    if (parentId === null) {
+      return await db.select().from(organizations).where(isNull(organizations.parentId));
+    }
+    return await db.select().from(organizations).where(eq(organizations.parentId, parentId));
+  }
+
+  async createOrganization(org: InsertOrganization): Promise<Organization> {
+    const [created] = await db.insert(organizations).values(org).returning();
+    return created;
+  }
+
+  async updateOrganization(id: string, updates: Partial<InsertOrganization>): Promise<Organization> {
+    const [updated] = await db.update(organizations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Users
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUsersByOrganization(organizationId: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.organizationId, organizationId));
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [created] = await db.insert(users).values(user).returning();
+    return created;
+  }
+
+  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
+    const [updated] = await db.update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Invitations
+  async getInvitation(id: string): Promise<Invitation | undefined> {
+    const [invitation] = await db.select().from(invitations).where(eq(invitations.id, id));
+    return invitation;
+  }
+
+  async getInvitationByToken(token: string): Promise<Invitation | undefined> {
+    const [invitation] = await db.select().from(invitations).where(eq(invitations.token, token));
+    return invitation;
+  }
+
+  async getInvitationsByOrganization(organizationId: string): Promise<Invitation[]> {
+    return await db.select().from(invitations).where(eq(invitations.organizationId, organizationId));
+  }
+
+  async createInvitation(invitation: InsertInvitation): Promise<Invitation> {
+    const [created] = await db.insert(invitations).values(invitation).returning();
+    return created;
+  }
+
+  async updateInvitation(id: string, updates: Partial<Invitation>): Promise<Invitation> {
+    const [updated] = await db.update(invitations)
+      .set(updates)
+      .where(eq(invitations.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Inspections
+  async getInspection(id: string): Promise<Inspection | undefined> {
+    const [inspection] = await db.select().from(inspections).where(eq(inspections.id, id));
+    return inspection;
+  }
+
+  async getInspectionsByOrganization(organizationId: string): Promise<Inspection[]> {
+    return await db.select().from(inspections).where(eq(inspections.organizationId, organizationId));
+  }
+
+  async getInspectionsByInspector(inspectorId: string): Promise<Inspection[]> {
+    return await db.select().from(inspections).where(eq(inspections.inspectorId, inspectorId));
+  }
+
+  async createInspection(inspection: InsertInspection): Promise<Inspection> {
+    const [created] = await db.insert(inspections).values(inspection).returning();
+    return created;
+  }
+
+  async updateInspection(id: string, updates: Partial<Inspection>): Promise<Inspection> {
+    const [updated] = await db.update(inspections)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(inspections.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Action Plans
+  async getActionPlan(id: string): Promise<ActionPlan | undefined> {
+    const [actionPlan] = await db.select().from(actionPlans).where(eq(actionPlans.id, id));
+    return actionPlan;
+  }
+
+  async getActionPlansByInspection(inspectionId: string): Promise<ActionPlan[]> {
+    return await db.select().from(actionPlans).where(eq(actionPlans.inspectionId, inspectionId));
+  }
+
+  async getActionPlansByOrganization(organizationId: string): Promise<ActionPlan[]> {
+    return await db.select().from(actionPlans).where(eq(actionPlans.organizationId, organizationId));
+  }
+
+  async createActionPlan(actionPlan: InsertActionPlan): Promise<ActionPlan> {
+    const [created] = await db.insert(actionPlans).values(actionPlan).returning();
+    return created;
+  }
+
+  async updateActionPlan(id: string, updates: Partial<ActionPlan>): Promise<ActionPlan> {
+    const [updated] = await db.update(actionPlans)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(actionPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Files
+  async getFile(id: string): Promise<File | undefined> {
+    const [file] = await db.select().from(files).where(eq(files.id, id));
+    return file;
+  }
+
+  async getFilesByInspection(inspectionId: string): Promise<File[]> {
+    return await db.select().from(files).where(eq(files.inspectionId, inspectionId));
+  }
+
+  async createFile(file: InsertFile): Promise<File> {
+    const [created] = await db.insert(files).values(file).returning();
+    return created;
+  }
+
+  // Checklist Templates
+  async getChecklistTemplate(id: string): Promise<ChecklistTemplate | undefined> {
+    const [template] = await db.select().from(checklistTemplates).where(eq(checklistTemplates.id, id));
+    return template;
+  }
+
+  async getChecklistTemplatesByOrganization(organizationId: string): Promise<ChecklistTemplate[]> {
+    return await db.select().from(checklistTemplates)
+      .where(and(eq(checklistTemplates.organizationId, organizationId), eq(checklistTemplates.isActive, true)));
+  }
+
+  async getChecklistTemplatesByCategory(organizationId: string, category: string): Promise<ChecklistTemplate[]> {
+    return await db.select().from(checklistTemplates)
+      .where(and(
+        eq(checklistTemplates.organizationId, organizationId), 
+        eq(checklistTemplates.category, category),
+        eq(checklistTemplates.isActive, true)
+      ));
+  }
+
+  async createChecklistTemplate(template: InsertChecklistTemplate): Promise<ChecklistTemplate> {
+    const [created] = await db.insert(checklistTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateChecklistTemplate(id: string, updates: Partial<ChecklistTemplate>): Promise<ChecklistTemplate> {
+    const [updated] = await db.update(checklistTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(checklistTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteChecklistTemplate(id: string): Promise<void> {
+    await db.update(checklistTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(checklistTemplates.id, id));
+  }
+
+  // Activity Logs
+  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
+    const [created] = await db.insert(activityLogs).values(log).returning();
+    return created;
+  }
+
+  async getActivityLogsByOrganization(organizationId: string, limit = 50): Promise<ActivityLog[]> {
+    return await db.select().from(activityLogs)
+      .where(eq(activityLogs.organizationId, organizationId))
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(limit);
+  }
+}
+
+export const storage = new DatabaseStorage();

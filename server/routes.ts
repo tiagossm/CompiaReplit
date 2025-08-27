@@ -28,15 +28,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Middleware for authentication (simplified - in production use proper auth)
   const requireAuth = async (req: any, res: any, next: any) => {
-    const userEmail = req.headers['x-user-email'] || 'admin@iasst.com'; // Simplified auth
-    const user = await authenticateUser(userEmail as string);
-    
-    if (!user) {
-      return res.status(401).json({ message: "Não autorizado" });
+    try {
+      const userEmail = req.headers['x-user-email'] || 'admin@iasst.com'; // Simplified auth
+      const user = await authenticateUser(userEmail as string);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Não autorizado" });
+      }
+      
+      req.user = user;
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: "Authentication failed" });
     }
-    
-    req.user = user;
-    next();
   };
 
   // Organizations routes
