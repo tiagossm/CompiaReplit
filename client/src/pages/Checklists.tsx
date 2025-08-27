@@ -62,10 +62,7 @@ export default function Checklists() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/checklist-templates', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data: any) => apiRequest('/api/checklist-templates', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/checklist-templates'] });
       setIsDialogOpen(false);
@@ -86,10 +83,7 @@ export default function Checklists() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
-      apiRequest(`/api/checklist-templates/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
+      apiRequest(`/api/checklist-templates/${id}`, 'PUT', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/checklist-templates'] });
       setIsDialogOpen(false);
@@ -109,9 +103,7 @@ export default function Checklists() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/checklist-templates/${id}`, {
-      method: 'DELETE',
-    }),
+    mutationFn: (id: string) => apiRequest(`/api/checklist-templates/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/checklist-templates'] });
       toast({
@@ -146,25 +138,42 @@ export default function Checklists() {
           </p>
         </div>
         {canCreateTemplates && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-compia-blue hover:bg-compia-blue/90" data-testid="create-template">
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Template
+          <div className="flex gap-2">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-compia-blue hover:bg-compia-blue/90" data-testid="create-template">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Template
+                </Button>
+              </DialogTrigger>
+              <ChecklistTemplateDialog
+                template={editingTemplate}
+                onSubmit={(data) => {
+                  if (editingTemplate) {
+                    updateMutation.mutate({ id: editingTemplate.id, data });
+                  } else {
+                    createMutation.mutate(data);
+                  }
+                }}
+                isSubmitting={createMutation.isPending || updateMutation.isPending}
+              />
+            </Dialog>
+            <a href="/checklists/import">
+              <Button variant="outline" data-testid="import-csv">
+                Importar CSV
               </Button>
-            </DialogTrigger>
-            <ChecklistTemplateDialog
-              template={editingTemplate}
-              onSubmit={(data) => {
-                if (editingTemplate) {
-                  updateMutation.mutate({ id: editingTemplate.id, data });
-                } else {
-                  createMutation.mutate(data);
-                }
-              }}
-              isSubmitting={createMutation.isPending || updateMutation.isPending}
-            />
-          </Dialog>
+            </a>
+            <a href="/checklists/ai-generate">
+              <Button variant="outline" data-testid="ai-generate">
+                Gerar com IA
+              </Button>
+            </a>
+            <a href="/checklists/new">
+              <Button variant="outline" data-testid="builder">
+                Construtor Manual
+              </Button>
+            </a>
+          </div>
         )}
       </div>
 
