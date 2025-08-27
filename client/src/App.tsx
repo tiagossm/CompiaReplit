@@ -11,10 +11,16 @@ import ActionPlans from "@/pages/ActionPlans";
 import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
 import Checklists from "@/pages/Checklists";
+import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
+import CSVImport from "@/pages/CSVImport";
+import ChecklistBuilder from "@/pages/ChecklistBuilder";
+import NewInspection from "@/pages/NewInspection";
+import InspectionDetail from "@/pages/InspectionDetail";
 import AcceptInvite from "@/pages/AcceptInvite";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/Layout/Sidebar";
 import TopBar from "@/components/Layout/TopBar";
+import AIChatbot from "@/components/AIChatbot";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -39,6 +45,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <AIChatbot />
     </div>
   );
 }
@@ -51,7 +58,12 @@ function Router() {
       <Route path="/dashboard" component={() => <AppLayout><Dashboard /></AppLayout>} />
       <Route path="/organizations" component={() => <AppLayout><Organizations /></AppLayout>} />
       <Route path="/inspections" component={() => <AppLayout><Inspections /></AppLayout>} />
+      <Route path="/inspections/new" component={() => <AppLayout><NewInspection /></AppLayout>} />
+      <Route path="/inspections/:id" component={() => <AppLayout><InspectionDetail /></AppLayout>} />
       <Route path="/checklists" component={() => <AppLayout><Checklists /></AppLayout>} />
+      <Route path="/checklists/ai-generate" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
+      <Route path="/checklists/import" component={() => <AppLayout><CSVImport /></AppLayout>} />
+      <Route path="/checklists/new" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
       <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />

@@ -9,8 +9,22 @@ import {
 import { authenticateUser, hasPermission, canAccessOrganization, filterByOrganizationAccess } from "./services/auth";
 import { analyzeInspectionFindings, generateActionPlanRecommendations, generateComplianceInsights } from "./services/openai";
 import { generateQRCode, generateInspectionReport, generateComplianceReport, calculateComplianceMetrics, generateInviteToken, isTokenValid } from "./services/documents";
+import { OpenAIAssistantsService } from "./services/openai-assistants";
+import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Initialize OpenAI services
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  let assistantsService: OpenAIAssistantsService | null = null;
+  let openai: OpenAI | null = null;
+  
+  if (openaiApiKey) {
+    assistantsService = new OpenAIAssistantsService(openaiApiKey);
+    openai = new OpenAI({ apiKey: openaiApiKey });
+    // Initialize assistants on startup
+    assistantsService.initializeAssistants().catch(console.error);
+  }
   
   // Middleware for authentication (simplified - in production use proper auth)
   const requireAuth = async (req: any, res: any, next: any) => {
@@ -658,6 +672,309 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(logs);
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // AI Chatbot route
+  app.post('/api/ai/chatbot', requireAuth, async (req, res) => {
+    try {
+      if (!assistantsService) {
+        return res.status(503).json({ message: "Serviço de IA não disponível" });
+      }
+      
+      const { message, context } = req.body;
+      const result = await assistantsService.chatbotResponse(message, context);
+      
+      res.json({ response: result.analysis });
+    } catch (error) {
+      console.error('Chatbot error:', error);
+      res.status(500).json({ message: "Erro ao processar mensagem" });
+    }
+  });
+
+  // AI-powered checklist generation
+  app.post('/api/checklist-templates/generate-ai', requireAuth, async (req, res) => {
+    try {
+      if (!openai) {
+        return res.status(503).json({ message: "Serviço de IA não disponível" });
+      }
+      
+      const { user } = req;
+      const { 
+        industry, location_type, template_name, category,
+        num_questions, specific_requirements, assistant
+      } = req.body;
+      
+      // Generate checklist using selected assistant
+      let prompt = `Crie um checklist de inspeção de segurança do trabalho com ${num_questions} perguntas para:
+      - Indústria: ${industry}
+      - Tipo de Local: ${location_type}
+      - Requisitos específicos: ${specific_requirements || 'Nenhum'}
+      
+      O checklist deve ser detalhado e seguir as melhores práticas de SST.
+      Retorne como JSON com formato: { items: [{ type: string, label: string, description: string, required: boolean, options?: string[] }] }`;
+      
+      // Use assistant if specified and available
+      let aiResponse;
+      if (assistant && assistant !== 'GENERAL' && assistantsService) {
+        const result = await assistantsService.analyzeWithAssistant(assistant, prompt);
+        aiResponse = result.analysis;
+      } else {
+        // Use regular OpenAI completion
+        // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        const completion = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        });
+        aiResponse = completion.choices[0].message.content;
+      }
+      
+      const checklistData = JSON.parse(aiResponse || '{}');
+      
+      // Save to database
+      const template = await storage.createChecklistTemplate({
+        name: template_name,
+        category,
+        organizationId: user.organizationId!,
+        items: checklistData.items || checklistData,
+        tags: [industry, location_type],
+        createdBy: user.id
+      });
+      
+      res.json(template);
+    } catch (error) {
+      console.error('AI generation error:', error);
+      res.status(500).json({ message: "Erro ao gerar checklist com IA" });
+    }
+  });
+
+  // Generate CSV from AI prompt
+  app.post('/api/checklist-templates/generate-from-prompt', requireAuth, async (req, res) => {
+    try {
+      if (!openai) {
+        return res.status(503).json({ message: "Serviço de IA não disponível" });
+      }
+      
+      const { prompt } = req.body;
+      
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [{
+          role: "user",
+          content: `${prompt}
+          
+          Gere um CSV para este checklist com as seguintes colunas:
+          campo,tipo,obrigatorio,opcoes,descricao
+          
+          Tipos disponíveis: text, textarea, select, multiselect, checkbox, radio, boolean, date, time, datetime, number, rating, file, signature, location
+          
+          Para campos com opções (select, radio, multiselect), separe as opções com pipe (|).
+          Retorne apenas o CSV, sem formatação adicional.`
+        }]
+      });
+      
+      const csv = completion.choices[0].message.content;
+      res.json({ csv });
+    } catch (error) {
+      console.error('CSV generation error:', error);
+      res.status(500).json({ message: "Erro ao gerar CSV" });
+    }
+  });
+
+  // Import CSV checklist
+  app.post('/api/checklist-templates/import-csv', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { name, category, csvData, fields } = req.body;
+      
+      // Convert fields to template format
+      const items = fields.map((field: any) => ({
+        type: field.type,
+        label: field.name || field.label,
+        description: field.description,
+        required: field.required || false,
+        options: field.options,
+        order: field.order
+      }));
+      
+      const template = await storage.createChecklistTemplate({
+        name,
+        category,
+        organizationId: user.organizationId!,
+        items,
+        createdBy: user.id
+      });
+      
+      res.json(template);
+    } catch (error) {
+      console.error('CSV import error:', error);
+      res.status(500).json({ message: "Erro ao importar CSV" });
+    }
+  });
+
+  // Manual checklist creation
+  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { name, description, category, fields, tags } = req.body;
+      
+      const items = fields.map((field: any) => ({
+        type: field.type,
+        label: field.label,
+        description: field.description,
+        required: field.required || false,
+        options: field.options,
+        min: field.min,
+        max: field.max,
+        placeholder: field.placeholder,
+        order: field.order
+      }));
+      
+      const template = await storage.createChecklistTemplate({
+        name,
+        description,
+        category,
+        organizationId: user.organizationId!,
+        items,
+        tags,
+        createdBy: user.id
+      });
+      
+      res.json(template);
+    } catch (error) {
+      console.error('Template creation error:', error);
+      res.status(500).json({ message: "Erro ao criar template" });
+    }
+  });
+
+  // Get checklist templates
+  app.get('/api/checklist-templates', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const templates = await storage.getChecklistTemplatesByOrganization(user.organizationId!);
+      res.json(templates);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Get single checklist template
+  app.get('/api/checklist-templates/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const template = await storage.getChecklistTemplate(id);
+      if (!template) {
+        return res.status(404).json({ message: "Template não encontrado" });
+      }
+      
+      if (!canAccessOrganization(user, template.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar este template" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Start inspection
+  app.post('/api/inspections/:id/start', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!canAccessOrganization(user, inspection.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão" });
+      }
+      
+      const updated = await storage.updateInspection(id, {
+        status: 'in_progress',
+        startedAt: new Date()
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Complete inspection
+  app.post('/api/inspections/:id/complete', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      const { responses } = req.body;
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!canAccessOrganization(user, inspection.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão" });
+      }
+      
+      // Calculate findings
+      const conformities = Object.values(responses || {}).filter((r: any) => r.status === 'conform').length;
+      const nonConformities = Object.values(responses || {}).filter((r: any) => r.status === 'non-conform').length;
+      const total = Object.keys(responses || {}).length;
+      const score = total > 0 ? Math.round((conformities / total) * 100) : 0;
+      
+      const updated = await storage.updateInspection(id, {
+        status: 'completed',
+        completedAt: new Date(),
+        findings: {
+          conformities,
+          nonConformities,
+          score,
+          details: responses
+        }
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Analyze inspection with AI
+  app.post('/api/inspections/:id/analyze', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!canAccessOrganization(user, inspection.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão" });
+      }
+      
+      if (assistantsService) {
+        const analysis = await assistantsService.analyzeInspection(inspection);
+        
+        const updated = await storage.updateInspection(id, {
+          aiAnalysis: analysis.analysis
+        });
+        
+        res.json(updated);
+      } else {
+        res.status(503).json({ message: "Serviço de análise IA não disponível" });
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+      res.status(500).json({ message: "Erro ao analisar inspeção" });
     }
   });
 
