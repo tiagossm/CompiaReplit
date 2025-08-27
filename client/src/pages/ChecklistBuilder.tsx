@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useState, useEffect } from 'react';
+import { useLocation, useParams } from 'wouter';
 import { 
   ArrowLeft, Plus, Trash2, GripVertical, Save, Eye, 
   FileText, List, CheckSquare, Radio, Calendar, Clock,
@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +51,9 @@ const fieldTypes = [
 
 export default function ChecklistBuilder() {
   const [, navigate] = useLocation();
+  const { id: templateId } = useParams();
   const { toast } = useToast();
+  const isViewing = !!templateId;
   
   const [templateInfo, setTemplateInfo] = useState({
     name: '',
@@ -63,6 +65,39 @@ export default function ChecklistBuilder() {
   const [fields, setFields] = useState<ChecklistField[]>([]);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
+
+  // Load existing template if viewing
+  const { data: existingTemplate, isLoading: isLoadingTemplate } = useQuery({
+    queryKey: ['/api/checklist-templates', templateId],
+    queryFn: () => templateId ? apiRequest(`/api/checklist-templates/${templateId}`, 'GET') : null,
+    enabled: !!templateId
+  });
+
+  // Load template data when it arrives
+  useEffect(() => {
+    if (existingTemplate && isViewing) {
+      setTemplateInfo({
+        name: existingTemplate.name,
+        description: existingTemplate.description || '',
+        category: existingTemplate.category,
+        tags: existingTemplate.tags || []
+      });
+      
+      // Convert template items to fields format
+      const convertedFields = (existingTemplate.items || []).map((item: any, index: number) => ({
+        id: item.id || index.toString(),
+        type: item.type || 'text',
+        label: item.item || item.label || 'Pergunta',
+        description: item.description || item.standard || '',
+        required: item.required || item.isRequired || false,
+        options: item.options,
+        order: index
+      }));
+      
+      setFields(convertedFields);
+      setPreview(true); // Start in preview mode for viewing
+    }
+  }, [existingTemplate, isViewing]);
 
   const addField = (type: string) => {
     const newField: ChecklistField = {
@@ -114,9 +149,9 @@ export default function ChecklistBuilder() {
     onSuccess: (data) => {
       toast({
         title: "Checklist Criado!",
-        description: `Template "${data.name}" salvo com sucesso.`
+        description: `Template "${templateInfo.name}" salvo com sucesso.`
       });
-      navigate(`/checklists/${data.id}`);
+      navigate('/checklists');
     },
     onError: (error) => {
       toast({

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { CheckSquare, Plus, Edit, Trash2, Copy, Search, Filter } from "lucide-react";
+import { CheckSquare, Plus, Edit, Trash2, Copy, Search, Filter, Eye } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, hasPermission } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -315,11 +315,21 @@ export default function Checklists() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => navigate(`/checklists/${template.id}`)}
+                        data-testid={`view-template-${template.id}`}
+                        title="Visualizar checklist"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setEditingTemplate(template);
                           setIsDialogOpen(true);
                         }}
                         data-testid={`edit-template-${template.id}`}
+                        title="Editar template"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
