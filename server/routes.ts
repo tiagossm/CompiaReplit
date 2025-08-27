@@ -771,8 +771,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }]
       });
       
-      const csv = completion.choices[0].message.content;
-      res.json({ csv });
+      const csv = completion.choices[0]?.message?.content || '';
+      
+      // Clean up any markdown formatting
+      let cleanCsv = csv;
+      if (cleanCsv.includes('```')) {
+        cleanCsv = cleanCsv.replace(/```csv\n?/g, '').replace(/```/g, '');
+      }
+      
+      res.json({ csv: cleanCsv.trim() });
     } catch (error) {
       console.error('CSV generation error:', error);
       res.status(500).json({ message: "Erro ao gerar CSV" });
