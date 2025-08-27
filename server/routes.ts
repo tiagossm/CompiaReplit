@@ -46,9 +46,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let organizations = await storage.getOrganizations();
       
       // Filter by access permissions
-      if (user.role !== 'system_admin') {
+      if (user?.role !== 'system_admin') {
         organizations = organizations.filter(org => 
-          org.id === user.organizationId || org.parentId === user.organizationId
+          org.id === user?.organizationId || org.parentId === user?.organizationId
         );
       }
       
@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       
-      if (!hasPermission(user, 'create_organization')) {
+      if (!user || !hasPermission(user, 'create_organization')) {
         return res.status(403).json({ message: "Sem permissão para criar organizações" });
       }
       
@@ -70,14 +70,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organization = await storage.createOrganization(orgData);
       
       // Log activity
-      await storage.createActivityLog({
-        userId: user.id,
-        organizationId: organization.id,
-        action: 'create_organization',
-        entityType: 'organization',
-        entityId: organization.id,
-        details: { name: organization.name, type: organization.type }
-      });
+      if (user) {
+        await storage.createActivityLog({
+          userId: user.id,
+          organizationId: organization.id,
+          action: 'create_organization',
+          entityType: 'organization',
+          entityId: organization.id,
+          details: { name: organization.name, type: organization.type }
+        });
+      }
       
       res.status(201).json(organization);
     } catch (error) {
@@ -90,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { user } = req;
       const { id } = req.params;
       
-      if (!canAccessOrganization(user, id)) {
+      if (!user || !canAccessOrganization(user, id)) {
         return res.status(403).json({ message: "Sem permissão para acessar esta organização" });
       }
       

@@ -287,23 +287,25 @@ export default function Checklists() {
               <CardContent>
                 <div className="space-y-3">
                   <div className="text-sm text-muted-foreground" data-testid={`template-items-count-${template.id}`}>
-                    <strong>{template.items.length}</strong> itens de verificação
+                    <strong>{template.items?.length || 0}</strong> itens de verificação
                   </div>
                   
                   <div className="flex flex-wrap gap-2">
-                    {template.items.slice(0, 3).map((item) => (
+                    {(template.items || []).slice(0, 3).map((item, index) => (
                       <div
-                        key={item.id}
+                        key={item.id || index}
                         className="text-xs bg-muted px-2 py-1 rounded flex items-center gap-1"
-                        data-testid={`template-item-preview-${item.id}`}
+                        data-testid={`template-item-preview-${item.id || index}`}
                       >
                         <CheckSquare className="w-3 h-3" />
-                        {item.item.length > 25 ? `${item.item.slice(0, 25)}...` : item.item}
+                        {(item.item || item.description || 'Item sem nome').length > 25 ? 
+                          `${(item.item || item.description || 'Item sem nome').slice(0, 25)}...` : 
+                          (item.item || item.description || 'Item sem nome')}
                       </div>
                     ))}
-                    {template.items.length > 3 && (
+                    {(template.items?.length || 0) > 3 && (
                       <div className="text-xs text-muted-foreground px-2 py-1">
-                        +{template.items.length - 3} mais
+                        +{(template.items?.length || 0) - 3} mais
                       </div>
                     )}
                   </div>
