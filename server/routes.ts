@@ -338,7 +338,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Sem permissão para editar esta inspeção" });
       }
       
-      const updates = updateInspectionSchema.parse(req.body);
+      const updates = req.body;
+      
+      // Add timestamp fields based on status change
+      if (updates.status) {
+        const now = new Date();
+        if (updates.status === 'in_progress' && !inspection.startedAt) {
+          updates.startedAt = now;
+        } else if (updates.status === 'completed' && !inspection.completedAt) {
+          updates.completedAt = now;
+        }
+      }
       
       // If findings are provided, analyze with AI
       if (updates.findings && updates.findings.length > 0) {
@@ -374,6 +384,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedInspection);
     } catch (error) {
       res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/inspections/:id/clone', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const originalInspection = await storage.getInspection(id);
+      if (!originalInspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, originalInspection.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para clonar esta inspeção" });
+      }
+      
+      // Create cloned inspection with basic data only
+      const clonedData = {
+        title: `${originalInspection.title} (Cópia)`,
+        description: originalInspection.description,
+        location: originalInspection.location,
+        checklistTemplateId: originalInspection.checklistTemplateId,
+      };
+      
+      const clonedInspection = await storage.createInspection(clonedData);
+      
+      // Log activity
+      if (user) {
+        await storage.createActivityLog({
+          userId: user.id,
+          organizationId: originalInspection.organizationId,
+          action: 'clone_inspection',
+          entityType: 'inspection',
+          entityId: clonedInspection.id,
+          details: { originalId: id, title: clonedInspection.title }
+        });
+      }
+      
+      res.status(201).json(clonedInspection);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete('/api/inspections/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      if (!user || !hasPermission(user, 'delete_inspection') || !canAccessOrganization(user, inspection.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para excluir esta inspeção" });
+      }
+      
+      await storage.deleteInspection(id);
+      
+      // Log activity
+      if (user) {
+        await storage.createActivityLog({
+          userId: user.id,
+          organizationId: inspection.organizationId,
+          action: 'delete_inspection',
+          entityType: 'inspection',
+          entityId: id,
+          details: { title: inspection.title }
+        });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
     }
   });
 

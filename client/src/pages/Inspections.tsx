@@ -1,96 +1,161 @@
-import { useState } from "react";
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Search, Filter, Plus, Eye, Edit, Download, Play, QrCode, 
-  Calendar, MapPin, User, AlertTriangle, CheckCircle, Clock
-} from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth, hasPermission } from "@/hooks/useAuth";
-import type { Inspection } from "@/lib/types";
-import { STATUS_LABELS, STATUS_COLORS, INSPECTION_STATUS } from "@/lib/constants";
-import InspectionForm from "@/components/Inspections/InspectionForm";
-import QRCodeGenerator from "@/components/Inspections/QRCodeGenerator";
+  Plus, 
+  Search, 
+  Filter,
+  Calendar,
+  User,
+  MapPin,
+  Clock,
+  Play,
+  CheckCircle2,
+  AlertCircle,
+  Edit,
+  Trash2,
+  Copy,
+  Download,
+  Upload
+} from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
+import type { Inspection } from "@shared/schema";
 
 export default function Inspections() {
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
-  const [showQRGenerator, setShowQRGenerator] = useState<Inspection | null>(null);
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
+  const [csvLoading, setCsvLoading] = useState(false);
 
   const { data: inspections, isLoading } = useQuery<Inspection[]>({
     queryKey: ['/api/inspections'],
   });
 
-  const canCreateInspection = hasPermission(user, 'create_inspection');
-  const canEditInspection = hasPermission(user, 'edit_inspection');
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/inspections/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
+      setShowDeleteModal(null);
+    }
+  });
+
+  const cloneMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/inspections/${id}/clone`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
+    }
+  });
+
+  const handleDeleteInspection = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
+  const handleCloneInspection = (id: string) => {
+    cloneMutation.mutate(id);
+  };
+
+  const handleExportInspections = async () => {
+    setCsvLoading(true);
+    try {
+      const csvData = filteredInspections.map(inspection => ({
+        titulo: inspection.title,
+        descricao: inspection.description || '',
+        local: inspection.location,
+        status: getStatusLabel(inspection.status),
+        data_agendada: inspection.scheduledAt ? new Date(inspection.scheduledAt).toLocaleDateString('pt-BR') : '',
+        data_criacao: new Date(inspection.createdAt!).toLocaleDateString('pt-BR'),
+      }));
+
+      const headers = 'titulo,descricao,local,status,data_agendada,data_criacao';
+      const csvContent = [
+        headers,
+        ...csvData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `inspecoes_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Erro ao exportar inspeções:', error);
+      alert('Erro ao exportar dados. Tente novamente.');
+    } finally {
+      setCsvLoading(false);
+    }
+  };
 
   const filteredInspections = (inspections || []).filter(inspection => {
     const matchesSearch = inspection.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          inspection.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || inspection.status === statusFilter;
+    
+    const matchesStatus = statusFilter === 'all' || inspection.status === statusFilter;
+    
     return matchesSearch && matchesStatus;
   });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case INSPECTION_STATUS.COMPLETED:
-        return <CheckCircle className="w-4 h-4 text-compia-green" />;
-      case INSPECTION_STATUS.IN_PROGRESS:
+      case 'draft':
         return <Clock className="w-4 h-4 text-yellow-500" />;
-      case INSPECTION_STATUS.DRAFT:
-        return <Edit className="w-4 h-4 text-muted-foreground" />;
+      case 'in_progress':
+        return <Play className="w-4 h-4 text-blue-500" />;
+      case 'completed':
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+      case 'approved':
+        return <CheckCircle2 className="w-4 h-4 text-compia-green" />;
+      case 'rejected':
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <AlertTriangle className="w-4 h-4 text-compia-purple" />;
+        return <Clock className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const getActionButton = (inspection: Inspection) => {
-    if (inspection.status === INSPECTION_STATUS.COMPLETED) {
-      return (
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-compia-blue hover:text-compia-blue/80"
-          data-testid={`view-inspection-${inspection.id}`}
-        >
-          <Eye className="w-4 h-4" />
-        </Button>
-      );
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'Rascunho';
+      case 'in_progress':
+        return 'Em Andamento';
+      case 'completed':
+        return 'Concluída';
+      case 'approved':
+        return 'Aprovada';
+      case 'rejected':
+        return 'Rejeitada';
+      default:
+        return 'Desconhecido';
     }
+  };
 
-    if (inspection.status === INSPECTION_STATUS.DRAFT) {
-      return (
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-compia-green hover:text-compia-green/80"
-          onClick={() => setSelectedInspection(inspection)}
-          data-testid={`start-inspection-${inspection.id}`}
-        >
-          <Play className="w-4 h-4" />
-        </Button>
-      );
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'approved':
+        return 'bg-compia-green/20 text-compia-green';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
-
-    return (
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="text-compia-blue hover:text-compia-blue/80"
-        onClick={() => setSelectedInspection(inspection)}
-        data-testid={`edit-inspection-${inspection.id}`}
-      >
-        <Edit className="w-4 h-4" />
-      </Button>
-    );
   };
 
   if (isLoading) {
@@ -106,8 +171,30 @@ export default function Inspections() {
 
   return (
     <div className="p-6 space-y-6" data-testid="inspections-page">
-      {/* Header with Search and Filters */}
-      <Card data-testid="inspections-header">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-heading font-bold text-compia-blue">Inspeções</h1>
+        <div className="flex space-x-2">
+          <Button
+            onClick={handleExportInspections}
+            variant="outline"
+            disabled={csvLoading}
+            data-testid="export-inspections"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
+          <Link href="/inspections/new">
+            <Button className="bg-compia-blue hover:bg-compia-blue/90" data-testid="create-inspection">
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Inspeção
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0 md:space-x-4">
             <div className="flex-1 flex space-x-4">
@@ -123,200 +210,140 @@ export default function Inspections() {
               </div>
               
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]" data-testid="filter-status">
+                <SelectTrigger className="w-48" data-testid="filter-status">
                   <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue />
+                  <SelectValue placeholder="Filtrar por status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value={INSPECTION_STATUS.DRAFT}>Rascunho</SelectItem>
-                  <SelectItem value={INSPECTION_STATUS.IN_PROGRESS}>Em Andamento</SelectItem>
-                  <SelectItem value={INSPECTION_STATUS.COMPLETED}>Concluída</SelectItem>
-                  <SelectItem value={INSPECTION_STATUS.APPROVED}>Aprovada</SelectItem>
+                  <SelectItem value="draft">Rascunho</SelectItem>
+                  <SelectItem value="in_progress">Em Andamento</SelectItem>
+                  <SelectItem value="completed">Concluída</SelectItem>
+                  <SelectItem value="approved">Aprovada</SelectItem>
+                  <SelectItem value="rejected">Rejeitada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
-            {canCreateInspection && (
-              <Button 
-                onClick={() => setShowCreateForm(true)}
-                className="bg-compia-blue hover:bg-compia-blue/90 text-primary-foreground"
-                data-testid="new-inspection-button"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Inspeção
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Inspections Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="inspections-grid">
-        {filteredInspections.length === 0 ? (
-          <Card className="md:col-span-2 lg:col-span-3" data-testid="no-inspections">
-            <CardContent className="p-12 text-center">
-              <CheckCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                {searchTerm || statusFilter !== "all" 
-                  ? "Nenhuma inspeção encontrada" 
-                  : "Nenhuma inspeção cadastrada"
-                }
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                {searchTerm || statusFilter !== "all"
-                  ? "Tente ajustar os filtros de pesquisa"
-                  : "Comece criando sua primeira inspeção de segurança"
-                }
-              </p>
-              {canCreateInspection && !searchTerm && statusFilter === "all" && (
-                <Button 
-                  onClick={() => setShowCreateForm(true)}
-                  className="bg-compia-blue hover:bg-compia-blue/90"
-                  data-testid="create-first-inspection"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar Primeira Inspeção
-                </Button>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredInspections.map((inspection) => (
+          <Card key={inspection.id} className="hover:shadow-md transition-shadow" data-testid={`inspection-card-${inspection.id}`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <CardTitle className="text-lg font-semibold text-compia-blue line-clamp-2">
+                  {inspection.title}
+                </CardTitle>
+                <Badge className={`ml-2 ${getStatusColor(inspection.status)}`}>
+                  {getStatusIcon(inspection.status)}
+                  <span className="ml-1">{getStatusLabel(inspection.status)}</span>
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {inspection.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {inspection.description}
+                </p>
               )}
-            </CardContent>
-          </Card>
-        ) : (
-          filteredInspections.map((inspection) => (
-            <Card 
-              key={inspection.id} 
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              data-testid={`inspection-card-${inspection.id}`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg line-clamp-2 mb-2" data-testid={`inspection-title-${inspection.id}`}>
-                      {inspection.title}
-                    </CardTitle>
-                    <div className="flex items-center space-x-2 mb-2">
-                      {getStatusIcon(inspection.status)}
-                      <Badge 
-                        className={STATUS_COLORS[inspection.status as keyof typeof STATUS_COLORS]}
-                        data-testid={`inspection-status-${inspection.id}`}
-                      >
-                        {STATUS_LABELS[inspection.status as keyof typeof STATUS_LABELS]}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
               
-              <CardContent className="pt-0">
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="truncate" data-testid={`inspection-location-${inspection.id}`}>
-                      {inspection.location}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <User className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span>Inspetor: {inspection.inspectorId.slice(0, 8)}...</span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span data-testid={`inspection-date-${inspection.id}`}>
-                      {inspection.completedAt 
-                        ? `Concluída: ${new Date(inspection.completedAt).toLocaleDateString('pt-BR')}`
-                        : inspection.scheduledAt
-                        ? `Programada: ${new Date(inspection.scheduledAt).toLocaleDateString('pt-BR')}`
-                        : `Criada: ${new Date(inspection.createdAt).toLocaleDateString('pt-BR')}`
-                      }
-                    </span>
-                  </div>
-
-                  {inspection.findings && Array.isArray(inspection.findings) && inspection.findings.length > 0 && (
-                    <div className="flex items-center text-sm">
-                      <AlertTriangle className="w-4 h-4 mr-2 text-destructive flex-shrink-0" />
-                      <span className="text-destructive font-medium">
-                        {inspection.findings.length} não conformidade{inspection.findings.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  )}
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center text-muted-foreground">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <span className="truncate">{inspection.location}</span>
                 </div>
                 
-                <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                  <div className="flex space-x-2">
-                    {getActionButton(inspection)}
-                    
-                    {inspection.status === INSPECTION_STATUS.COMPLETED && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-muted-foreground hover:text-foreground"
-                        data-testid={`download-inspection-${inspection.id}`}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    )}
-                    
-                    {inspection.qrCode && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowQRGenerator(inspection)}
-                        data-testid={`qr-inspection-${inspection.id}`}
-                      >
-                        <QrCode className="w-4 h-4" />
-                      </Button>
-                    )}
+                {inspection.scheduledAt && (
+                  <div className="flex items-center text-muted-foreground">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    <span>{new Date(inspection.scheduledAt).toLocaleDateString('pt-BR')}</span>
                   </div>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between pt-3 border-t">
+                <div className="flex space-x-1">
+                  <Link href={`/inspections/${inspection.id}`}>
+                    <Button variant="ghost" size="sm" data-testid={`view-inspection-${inspection.id}`}>
+                      <Play className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleCloneInspection(inspection.id)}
+                    data-testid={`clone-inspection-${inspection.id}`}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowDeleteModal(inspection.id)}
+                    className="text-red-500 hover:text-red-700"
+                    data-testid={`delete-inspection-${inspection.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                
+                <span className="text-xs text-muted-foreground">
+                  {new Date(inspection.createdAt!).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Create/Edit Inspection Dialog */}
-      <Dialog open={showCreateForm || !!selectedInspection} onOpenChange={() => {
-        setShowCreateForm(false);
-        setSelectedInspection(null);
-      }}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" data-testid="inspection-form-dialog">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedInspection ? "Editar Inspeção" : "Nova Inspeção"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <InspectionForm
-            inspectionId={selectedInspection?.id}
-            initialData={selectedInspection || undefined}
-            mode={selectedInspection ? 'edit' : 'create'}
-            onSuccess={() => {
-              setShowCreateForm(false);
-              setSelectedInspection(null);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      {filteredInspections.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhuma inspeção encontrada</h3>
+            <p className="text-muted-foreground mb-4">
+              Não foram encontradas inspeções com os filtros selecionados.
+            </p>
+            <Link href="/inspections/new">
+              <Button className="bg-compia-blue hover:bg-compia-blue/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Criar primeira inspeção
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* QR Code Generator Dialog */}
-      <Dialog open={!!showQRGenerator} onOpenChange={() => setShowQRGenerator(null)}>
-        <DialogContent className="max-w-md" data-testid="qr-generator-dialog">
-          <DialogHeader>
-            <DialogTitle>QR Code da Inspeção</DialogTitle>
-          </DialogHeader>
-          
-          {showQRGenerator && (
-            <QRCodeGenerator
-              inspectionId={showQRGenerator.id}
-              inspectionTitle={showQRGenerator.title}
-              qrCode={showQRGenerator.qrCode || undefined}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <Dialog open={!!showDeleteModal} onOpenChange={() => setShowDeleteModal(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar exclusão</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p>Tem certeza que deseja excluir esta inspeção? Esta ação não pode ser desfeita.</p>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowDeleteModal(null)}>
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeleteInspection(showDeleteModal)}
+                disabled={deleteMutation.isPending}
+              >
+                Excluir
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

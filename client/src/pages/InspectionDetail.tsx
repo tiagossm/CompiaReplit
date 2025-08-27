@@ -1,425 +1,370 @@
-import { useState } from 'react';
-import { useLocation, useParams } from 'wouter';
+import { useState, useEffect } from 'react';
+import { useRoute, useLocation } from 'wouter';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { 
-  ArrowLeft, Play, Pause, Check, AlertTriangle, 
-  Camera, Mic, FileText, Download, Share2, Brain,
-  Clock, MapPin, User, Calendar, ChevronRight
+  ArrowLeft, 
+  Calendar,
+  MapPin,
+  User,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Play,
+  FileText,
+  Share2,
+  Download,
+  Edit
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { queryClient } from '@/lib/queryClient';
+import type { Inspection } from "@shared/schema";
 
 export default function InspectionDetail() {
-  const [, navigate] = useLocation();
-  const { id } = useParams();
-  const { toast } = useToast();
-  
-  const [activeTab, setActiveTab] = useState('execution');
-  const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
-  const [responses, setResponses] = useState<Record<string, any>>({});
+  const [match, params] = useRoute('/inspections/:id');
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const inspectionId = params?.id;
 
-  // Query inspection details
-  const { data: inspection, isLoading } = useQuery({
-    queryKey: [`/api/inspections/${id}`],
-    enabled: !!id
+  const { data: inspection, isLoading } = useQuery<Inspection>({
+    queryKey: ['/api/inspections', inspectionId],
+    enabled: !!inspectionId,
   });
 
-  // Start inspection mutation
-  const startMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest(`/api/inspections/${id}/start`, 'POST');
-    },
+  const updateStatusMutation = useMutation({
+    mutationFn: (status: string) => 
+      apiRequest(`/api/inspections/${inspectionId}`, 'PATCH', { status }),
     onSuccess: () => {
-      toast({
-        title: "Inspeção Iniciada",
-        description: "A inspeção está em andamento"
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/inspections', inspectionId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
     }
   });
 
-  // Complete inspection mutation
-  const completeMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest(`/api/inspections/${id}/complete`, 'POST', { responses });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Inspeção Concluída",
-        description: "Inspeção finalizada com sucesso"
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}`] });
-      setActiveTab('results');
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return <Clock className="w-5 h-5 text-yellow-500" />;
+      case 'in_progress':
+        return <Play className="w-5 h-5 text-blue-500" />;
+      case 'completed':
+        return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+      case 'approved':
+        return <CheckCircle2 className="w-5 h-5 text-compia-green" />;
+      case 'rejected':
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-500" />;
     }
-  });
+  };
 
-  // AI Analysis mutation
-  const analysisMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest(`/api/inspections/${id}/analyze`, 'POST');
-    },
-    onSuccess: () => {
-      toast({
-        title: "Análise Concluída",
-        description: "IA analisou a inspeção com sucesso"
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}`] });
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'Rascunho';
+      case 'in_progress':
+        return 'Em Andamento';
+      case 'completed':
+        return 'Concluída';
+      case 'approved':
+        return 'Aprovada';
+      case 'rejected':
+        return 'Rejeitada';
+      default:
+        return 'Desconhecido';
     }
-  });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'completed':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'approved':
+        return 'bg-compia-green/20 text-compia-green border-compia-green/30';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const handleStartInspection = () => {
+    updateStatusMutation.mutate('in_progress');
+  };
+
+  const handleCompleteInspection = () => {
+    updateStatusMutation.mutate('completed');
+  };
+
+  if (!match || !inspectionId) {
+    return (
+      <div className="p-6">
+        <p>Inspeção não encontrada.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <p>Carregando inspeção...</p>
+      <div className="p-6" data-testid="inspection-detail-loading">
+        <div className="animate-pulse space-y-6">
+          <div className="h-12 bg-muted rounded"></div>
+          <div className="h-64 bg-muted rounded"></div>
+        </div>
       </div>
     );
   }
 
   if (!inspection) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <p>Inspeção não encontrada</p>
+      <div className="p-6 text-center" data-testid="inspection-not-found">
+        <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Inspeção não encontrada</h2>
+        <p className="text-muted-foreground mb-4">
+          A inspeção solicitada não existe ou você não tem permissão para visualizá-la.
+        </p>
+        <Button onClick={() => setLocation('/inspections')}>
+          Voltar para Inspeções
+        </Button>
       </div>
     );
   }
 
-  const statusColors = {
-    draft: 'bg-gray-100 text-gray-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    approved: 'bg-purple-100 text-purple-800',
-    rejected: 'bg-red-100 text-red-800'
-  };
-
-  const statusLabels = {
-    draft: 'Rascunho',
-    in_progress: 'Em Andamento',
-    completed: 'Concluída',
-    approved: 'Aprovada',
-    rejected: 'Rejeitada'
-  };
-
-  const checklistFields = inspection.checklist?.items || [];
-  const progress = (currentFieldIndex / checklistFields.length) * 100;
-
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="p-6 max-w-6xl mx-auto" data-testid="inspection-detail-page">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
-            size="icon"
-            onClick={() => navigate('/inspections')}
+            onClick={() => setLocation('/inspections')}
+            data-testid="back-to-inspections"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{inspection.title}</h1>
-            <div className="flex items-center gap-4 mt-2 text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {inspection.location}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                {new Date(inspection.scheduledAt).toLocaleDateString('pt-BR')}
-              </span>
-              <Badge className={statusColors[inspection.status]}>
-                {statusLabels[inspection.status]}
+            <h1 className="text-3xl font-heading font-bold text-compia-blue">
+              {inspection.title}
+            </h1>
+            <div className="flex items-center space-x-2 mt-2">
+              <Badge className={`${getStatusColor(inspection.status || 'draft')} border`}>
+                {getStatusIcon(inspection.status || 'draft')}
+                <span className="ml-2">{getStatusLabel(inspection.status || 'draft')}</span>
               </Badge>
             </div>
           </div>
         </div>
-        
-        <div className="flex gap-2">
+
+        <div className="flex space-x-2">
           {inspection.status === 'draft' && (
-            <Button onClick={() => startMutation.mutate()}>
-              <Play className="mr-2 h-4 w-4" />
+            <Button
+              onClick={handleStartInspection}
+              disabled={updateStatusMutation.isPending}
+              className="bg-compia-blue hover:bg-compia-blue/90"
+              data-testid="start-inspection"
+            >
+              <Play className="w-4 h-4 mr-2" />
               Iniciar Inspeção
             </Button>
           )}
-          {inspection.status === 'completed' && (
-            <>
-              <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Exportar
-              </Button>
-              <Button variant="outline">
-                <Share2 className="mr-2 h-4 w-4" />
-                Compartilhar
-              </Button>
-            </>
+          
+          {inspection.status === 'in_progress' && (
+            <Button
+              onClick={handleCompleteInspection}
+              disabled={updateStatusMutation.isPending}
+              className="bg-compia-green hover:bg-compia-green/90"
+              data-testid="complete-inspection"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Finalizar Inspeção
+            </Button>
           )}
+
+          <Button variant="outline" data-testid="share-inspection">
+            <Share2 className="w-4 h-4 mr-2" />
+            Compartilhar
+          </Button>
+
+          <Button variant="outline" data-testid="download-report">
+            <Download className="w-4 h-4 mr-2" />
+            Relatório
+          </Button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="execution">Execução</TabsTrigger>
-          <TabsTrigger value="results">Resultados</TabsTrigger>
-          <TabsTrigger value="analysis">Análise IA</TabsTrigger>
-          <TabsTrigger value="actions">Plano de Ação</TabsTrigger>
-        </TabsList>
-
-        {/* Execution Tab */}
-        <TabsContent value="execution" className="mt-6">
-          {inspection.status === 'draft' ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">Inspeção Agendada</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Esta inspeção está agendada para {new Date(inspection.scheduledAt).toLocaleString('pt-BR')}
-                  </p>
-                  <Button onClick={() => startMutation.mutate()}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Iniciar Agora
-                  </Button>
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Basic Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="w-5 h-5 mr-2 text-compia-blue" />
+                Informações da Inspeção
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {inspection.description && (
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">
+                    Descrição
+                  </h4>
+                  <p className="text-gray-700">{inspection.description}</p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : inspection.status === 'in_progress' ? (
-            <div className="space-y-6">
-              {/* Progress Bar */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progresso da Inspeção</span>
-                      <span>{currentFieldIndex}/{checklistFields.length} campos</span>
-                    </div>
-                    <Progress value={progress} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Current Field */}
-              {checklistFields[currentFieldIndex] && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>Campo {currentFieldIndex + 1} de {checklistFields.length}</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="icon">
-                          <Camera className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon">
-                          <Mic className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon">
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium text-lg mb-2">
-                          {checklistFields[currentFieldIndex].label}
-                          {checklistFields[currentFieldIndex].required && (
-                            <span className="text-destructive ml-1">*</span>
-                          )}
-                        </h4>
-                        {checklistFields[currentFieldIndex].description && (
-                          <p className="text-muted-foreground">
-                            {checklistFields[currentFieldIndex].description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Render field input based on type */}
-                      <div className="py-4">
-                        {/* Field inputs would go here based on field type */}
-                        <p className="text-muted-foreground">
-                          [Campo de entrada tipo: {checklistFields[currentFieldIndex].type}]
-                        </p>
-                      </div>
-
-                      {/* Navigation */}
-                      <div className="flex justify-between">
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentFieldIndex(Math.max(0, currentFieldIndex - 1))}
-                          disabled={currentFieldIndex === 0}
-                        >
-                          Anterior
-                        </Button>
-                        {currentFieldIndex === checklistFields.length - 1 ? (
-                          <Button onClick={() => completeMutation.mutate()}>
-                            <Check className="mr-2 h-4 w-4" />
-                            Concluir Inspeção
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => setCurrentFieldIndex(currentFieldIndex + 1)}
-                          >
-                            Próximo
-                            <ChevronRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               )}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <Check className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                  <h3 className="text-lg font-medium mb-2">Inspeção Concluída</h3>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center text-sm">
+                    <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="font-medium mr-2">Local:</span>
+                    <span>{inspection.location}</span>
+                  </div>
+
+                  {inspection.scheduledAt && (
+                    <div className="flex items-center text-sm">
+                      <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span className="font-medium mr-2">Agendado para:</span>
+                      <span>{new Date(inspection.scheduledAt).toLocaleString('pt-BR')}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center text-sm">
+                    <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="font-medium mr-2">Criado em:</span>
+                    <span>{new Date(inspection.createdAt!).toLocaleString('pt-BR')}</span>
+                  </div>
+
+                  {inspection.startedAt && (
+                    <div className="flex items-center text-sm">
+                      <Play className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span className="font-medium mr-2">Iniciado em:</span>
+                      <span>{new Date(inspection.startedAt).toLocaleString('pt-BR')}</span>
+                    </div>
+                  )}
+
+                  {inspection.completedAt && (
+                    <div className="flex items-center text-sm">
+                      <CheckCircle2 className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span className="font-medium mr-2">Finalizado em:</span>
+                      <span>{new Date(inspection.completedAt).toLocaleString('pt-BR')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Checklist Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Checklist de Inspeção</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inspection.checklist ? (
+                <div className="space-y-4">
                   <p className="text-muted-foreground">
-                    Visualize os resultados e análises nas outras abas
+                    Checklist baseado no template selecionado.
+                  </p>
+                  {/* TODO: Implementar componente de checklist */}
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-center text-muted-foreground">
+                      Componente de checklist será implementado aqui
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Checklist não carregado</h3>
+                  <p className="text-muted-foreground">
+                    O checklist será carregado quando a inspeção for iniciada.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Ações Rápidas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                data-testid="edit-inspection"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Editar Inspeção
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                data-testid="add-note"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Adicionar Observação
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Inspector Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Inspetor Responsável</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-compia-blue rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-medium">{user?.name || 'Usuário'}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Progress Summary */}
+          {inspection.status !== 'draft' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Progresso</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Itens verificados</span>
+                    <span className="font-medium">0/0</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-compia-blue h-2 rounded-full" style={{ width: '0%' }}></div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    0% concluído
                   </p>
                 </div>
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        {/* Results Tab */}
-        <TabsContent value="results" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Conformidades</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">
-                  {inspection.findings?.conformities || 0}
-                </div>
-                <p className="text-sm text-muted-foreground">Itens conformes</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Não Conformidades</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600">
-                  {inspection.findings?.nonConformities || 0}
-                </div>
-                <p className="text-sm text-muted-foreground">Itens não conformes</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Score Geral</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
-                  {inspection.findings?.score || 0}%
-                </div>
-                <p className="text-sm text-muted-foreground">Pontuação de conformidade</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Findings List */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Achados da Inspeção</CardTitle>
-              <CardDescription>
-                Detalhes dos itens verificados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {inspection.findings?.details ? (
-                <div className="space-y-2">
-                  {/* Render findings details */}
-                  <p className="text-muted-foreground">Detalhes dos achados...</p>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  Nenhum resultado disponível ainda
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* AI Analysis Tab */}
-        <TabsContent value="analysis" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Análise de Inteligência Artificial
-                </span>
-                {inspection.status === 'completed' && !inspection.aiAnalysis && (
-                  <Button onClick={() => analysisMutation.mutate()}>
-                    Gerar Análise
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {inspection.aiAnalysis ? (
-                <div className="prose max-w-none">
-                  <p className="whitespace-pre-wrap">{inspection.aiAnalysis}</p>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    {inspection.status === 'completed' 
-                      ? 'Clique em "Gerar Análise" para obter insights da IA'
-                      : 'Complete a inspeção para gerar análise com IA'
-                    }
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Action Plans Tab */}
-        <TabsContent value="actions" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Planos de Ação</span>
-                {inspection.status === 'completed' && (
-                  <Button>
-                    Criar Plano de Ação
-                  </Button>
-                )}
-              </CardTitle>
-              <CardDescription>
-                Ações corretivas baseadas nas não conformidades
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {inspection.actionPlans?.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Render action plans */}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    Nenhum plano de ação criado ainda
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

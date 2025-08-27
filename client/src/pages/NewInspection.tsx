@@ -1,270 +1,212 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowLeft, Search, FileText, Calendar, MapPin, User, Building2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { queryClient } from '@/lib/queryClient';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
+import { Save, ArrowLeft, FileCheck, MapPin, Brain } from 'lucide-react';
+import type { ChecklistTemplate } from "@shared/schema";
 
 export default function NewInspection() {
-  const [, navigate] = useLocation();
-  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
-    location: '',
     description: '',
+    location: '',
     checklistTemplateId: '',
-    scheduledAt: new Date().toISOString().slice(0, 16)
+    scheduledAt: '',
   });
 
-  // Query checklist templates
-  const { data: templates = [], isLoading: loadingTemplates } = useQuery({
-    queryKey: ['/api/checklist-templates']
+  const { data: templates } = useQuery<ChecklistTemplate[]>({
+    queryKey: ['/api/checklist-templates'],
   });
 
-  // Create inspection mutation
   const createMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest('/api/inspections', 'POST', formData);
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Inspeção Criada",
-        description: "Inspeção agendada com sucesso"
-      });
+    mutationFn: (data: any) => apiRequest('/api/inspections', 'POST', data),
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
-      navigate(`/inspections/${data.id}`);
+      setLocation(`/inspections/${result.id}`);
     },
-    onError: (error) => {
-      toast({
-        title: "Erro ao Criar",
-        description: error.message || "Falha ao criar inspeção",
-        variant: "destructive"
-      });
+    onError: (error: any) => {
+      console.error('Erro ao criar inspeção:', error);
+      alert(`Erro ao criar inspeção: ${error.message || 'Tente novamente.'}`);
     }
   });
 
-  const handleSubmit = () => {
-    if (!formData.title || !formData.location || !formData.checklistTemplateId) {
-      toast({
-        title: "Campos Obrigatórios",
-        description: "Preencha todos os campos obrigatórios",
-        variant: "destructive"
-      });
-      return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const inspectionData = {
+        ...formData,
+        scheduledAt: formData.scheduledAt || undefined,
+      };
+
+      createMutation.mutate(inspectionData);
+    } finally {
+      setLoading(false);
     }
-    createMutation.mutate();
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Filtrar apenas templates válidos
+  const validTemplates = (templates || []).filter(template => 
+    template.name && template.category && template.isActive
+  );
+
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto" data-testid="new-inspection-page">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center space-x-4 mb-6">
         <Button
           variant="ghost"
-          size="icon"
-          onClick={() => navigate('/inspections')}
+          onClick={() => setLocation('/inspections')}
+          data-testid="back-to-inspections"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Nova Inspeção</h1>
-          <p className="text-muted-foreground">
-            Agende uma nova inspeção de segurança
-          </p>
-        </div>
+        <h1 className="text-3xl font-heading font-bold text-compia-blue">Nova Inspeção</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Form */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações da Inspeção</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">
-                  <FileText className="inline h-4 w-4 mr-1" />
-                  Título da Inspeção *
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Ex: Inspeção Semanal de Segurança"
-                />
-              </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <FileCheck className="w-5 h-5 mr-2 text-compia-blue" />
+              Informações Básicas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="title">Título da Inspeção *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder="Ex: Inspeção de Segurança - Canteiro Principal"
+                required
+                data-testid="input-title"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">
-                  <MapPin className="inline h-4 w-4 mr-1" />
-                  Local *
-                </Label>
-                <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Ex: Canteiro de Obras - Setor A"
-                />
-              </div>
+            <div>
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Descreva o objetivo e escopo desta inspeção..."
+                rows={3}
+                data-testid="input-description"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descreva o objetivo e escopo da inspeção..."
-                  rows={4}
-                />
-              </div>
+            <div>
+              <Label htmlFor="location">Local da Inspeção *</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                placeholder="Ex: Canteiro de Obras - Bloco A"
+                required
+                data-testid="input-location"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="scheduled">
-                  <Calendar className="inline h-4 w-4 mr-1" />
-                  Data e Hora Agendada
-                </Label>
-                <Input
-                  id="scheduled"
-                  type="datetime-local"
-                  value={formData.scheduledAt}
-                  onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
-                />
-              </div>
-            </CardContent>
-          </Card>
+            <div>
+              <Label htmlFor="scheduledAt">Data Agendada</Label>
+              <Input
+                id="scheduledAt"
+                type="datetime-local"
+                value={formData.scheduledAt}
+                onChange={(e) => handleInputChange('scheduledAt', e.target.value)}
+                data-testid="input-scheduled-date"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Checklist Template</CardTitle>
-              <CardDescription>
-                Selecione o checklist a ser usado nesta inspeção
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingTemplates ? (
-                <p className="text-muted-foreground">Carregando templates...</p>
-              ) : (
-                <div className="space-y-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      className="pl-10"
-                      placeholder="Buscar templates..."
-                    />
-                  </div>
-
-                  {/* Templates List */}
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {templates.length === 0 ? (
-                      <div className="text-center py-4 text-muted-foreground">
-                        <p>Nenhum template disponível</p>
-                        <Button
-                          variant="link"
-                          onClick={() => navigate('/checklists/new')}
-                        >
-                          Criar novo template
-                        </Button>
+        {/* Template Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Brain className="w-5 h-5 mr-2 text-compia-purple" />
+              Template de Checklist
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <Label htmlFor="checklistTemplateId">Selecione o Template *</Label>
+              <Select 
+                value={formData.checklistTemplateId} 
+                onValueChange={(value) => handleInputChange('checklistTemplateId', value)}
+              >
+                <SelectTrigger data-testid="select-template">
+                  <SelectValue placeholder="Escolha um template de checklist" />
+                </SelectTrigger>
+                <SelectContent>
+                  {validTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{template.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {template.category}
+                        </span>
                       </div>
-                    ) : (
-                      templates.map((template: any) => (
-                        <div
-                          key={template.id}
-                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                            formData.checklistTemplateId === template.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'hover:bg-secondary'
-                          }`}
-                          onClick={() => setFormData({ ...formData, checklistTemplateId: template.id })}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium">{template.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {template.category} • {template.items?.length || 0} campos
-                              </p>
-                            </div>
-                            {formData.checklistTemplateId === template.id && (
-                              <div className="text-blue-600 bg-blue-100 rounded-full p-1">
-                                ✓
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validTemplates.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Nenhum template de checklist disponível. 
+                  <a href="/checklist-templates" className="text-compia-blue hover:underline ml-1">
+                    Criar novo template
+                  </a>
+                </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <div className="flex justify-end space-x-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setLocation('/inspections')}
+            data-testid="cancel-inspection"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={loading || createMutation.isPending || !formData.title || !formData.location || !formData.checklistTemplateId}
+            className="bg-compia-blue hover:bg-compia-blue/90"
+            data-testid="save-inspection"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {loading || createMutation.isPending ? 'Criando...' : 'Criar Inspeção'}
+          </Button>
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumo</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <p className="font-medium">Rascunho</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Inspetor</p>
-                <p className="font-medium flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  Você
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Organização</p>
-                <p className="font-medium flex items-center gap-1">
-                  <Building2 className="h-4 w-4" />
-                  Sua Empresa
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-2">
-            <Button
-              className="w-full"
-              onClick={handleSubmit}
-              disabled={createMutation.isPending || !formData.checklistTemplateId}
-            >
-              {createMutation.isPending ? 'Criando...' : 'Criar Inspeção'}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate('/inspections')}
-            >
-              Cancelar
-            </Button>
-          </div>
-
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="pt-6">
-              <p className="text-sm text-blue-900">
-                <strong>Dica:</strong> Após criar a inspeção, você poderá iniciar a execução 
-                imediatamente ou aguardar o horário agendado. Durante a execução, você pode 
-                anexar fotos, vídeos e áudios que serão analisados pela IA.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </form>
     </div>
   );
 }
