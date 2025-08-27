@@ -5,7 +5,8 @@ import {
   type Inspection, type InsertInspection,
   type ActionPlan, type InsertActionPlan,
   type File, type InsertFile,
-  type ActivityLog, type InsertActivityLog
+  type ActivityLog, type InsertActivityLog,
+  type ChecklistTemplate, type InsertChecklistTemplate
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -50,6 +51,14 @@ export interface IStorage {
   getFilesByInspection(inspectionId: string): Promise<File[]>;
   createFile(file: InsertFile): Promise<File>;
   
+  // Checklist Templates
+  getChecklistTemplate(id: string): Promise<ChecklistTemplate | undefined>;
+  getChecklistTemplatesByOrganization(organizationId: string): Promise<ChecklistTemplate[]>;
+  getChecklistTemplatesByCategory(organizationId: string, category: string): Promise<ChecklistTemplate[]>;
+  createChecklistTemplate(template: InsertChecklistTemplate): Promise<ChecklistTemplate>;
+  updateChecklistTemplate(id: string, updates: Partial<ChecklistTemplate>): Promise<ChecklistTemplate>;
+  deleteChecklistTemplate(id: string): Promise<void>;
+  
   // Activity Logs
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
   getActivityLogsByOrganization(organizationId: string, limit?: number): Promise<ActivityLog[]>;
@@ -62,6 +71,7 @@ export class MemStorage implements IStorage {
   private inspections = new Map<string, Inspection>();
   private actionPlans = new Map<string, ActionPlan>();
   private files = new Map<string, File>();
+  private checklistTemplates = new Map<string, ChecklistTemplate>();
   private activityLogs: ActivityLog[] = [];
 
   constructor() {
@@ -138,6 +148,75 @@ export class MemStorage implements IStorage {
       updatedAt: new Date()
     };
     this.users.set(orgAdminId, orgAdmin);
+
+    // Create default checklist templates
+    this.createDefaultChecklistTemplates(enterpriseId, orgAdminId);
+  }
+
+  private createDefaultChecklistTemplates(organizationId: string, createdBy: string) {
+    const defaultTemplates = [
+      {
+        id: randomUUID(),
+        name: "Checklist Geral de Segurança",
+        description: "Template básico para inspeções gerais de segurança do trabalho",
+        category: "geral",
+        organizationId,
+        createdBy,
+        isDefault: true,
+        isActive: true,
+        items: [
+          { id: "1", item: "Equipamentos de Proteção Individual (EPIs)", standard: "NR-06", category: "epi", isRequired: true },
+          { id: "2", item: "Sinalização de Segurança", standard: "NR-26", category: "sinalizacao", isRequired: true },
+          { id: "3", item: "Instalações Elétricas", standard: "NR-10", category: "eletrica", isRequired: false },
+          { id: "4", item: "Máquinas e Equipamentos", standard: "NR-12", category: "maquinas", isRequired: false },
+          { id: "5", item: "Prevenção de Incêndios", standard: "NR-23", category: "incendio", isRequired: true }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Checklist NR-06 - EPIs",
+        description: "Template específico para verificação de equipamentos de proteção individual",
+        category: "nr-06",
+        organizationId,
+        createdBy,
+        isDefault: true,
+        isActive: true,
+        items: [
+          { id: "1", item: "Capacete de segurança", standard: "NR-06", category: "epi-cabeca", isRequired: true },
+          { id: "2", item: "Óculos de proteção", standard: "NR-06", category: "epi-olhos", isRequired: true },
+          { id: "3", item: "Luvas de segurança", standard: "NR-06", category: "epi-maos", isRequired: true },
+          { id: "4", item: "Calçados de segurança", standard: "NR-06", category: "epi-pes", isRequired: true },
+          { id: "5", item: "Protetor auricular", standard: "NR-06", category: "epi-audicao", isRequired: false }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Checklist NR-10 - Segurança Elétrica",
+        description: "Template para inspeções de segurança em instalações elétricas",
+        category: "nr-10",
+        organizationId,
+        createdBy,
+        isDefault: true,
+        isActive: true,
+        items: [
+          { id: "1", item: "Desenergização completa", standard: "NR-10", category: "procedimentos", isRequired: true },
+          { id: "2", item: "Travamento e etiquetagem", standard: "NR-10", category: "procedimentos", isRequired: true },
+          { id: "3", item: "Teste de ausência de tensão", standard: "NR-10", category: "verificacao", isRequired: true },
+          { id: "4", item: "Aterramento temporário", standard: "NR-10", category: "protecao", isRequired: true },
+          { id: "5", item: "Isolamento da área", standard: "NR-10", category: "area", isRequired: true }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    defaultTemplates.forEach(template => {
+      this.checklistTemplates.set(template.id, template as ChecklistTemplate);
+    });
   }
 
   // Organizations
@@ -358,6 +437,57 @@ export class MemStorage implements IStorage {
     };
     this.activityLogs.push(log);
     return log;
+  }
+
+  // Checklist Templates
+  async getChecklistTemplate(id: string): Promise<ChecklistTemplate | undefined> {
+    return this.checklistTemplates.get(id);
+  }
+
+  async getChecklistTemplatesByOrganization(organizationId: string): Promise<ChecklistTemplate[]> {
+    return Array.from(this.checklistTemplates.values())
+      .filter(template => template.organizationId === organizationId && template.isActive);
+  }
+
+  async getChecklistTemplatesByCategory(organizationId: string, category: string): Promise<ChecklistTemplate[]> {
+    return Array.from(this.checklistTemplates.values())
+      .filter(template => 
+        template.organizationId === organizationId && 
+        template.category === category && 
+        template.isActive
+      );
+  }
+
+  async createChecklistTemplate(templateData: InsertChecklistTemplate): Promise<ChecklistTemplate> {
+    const id = randomUUID();
+    const template: ChecklistTemplate = {
+      ...templateData,
+      id,
+      isActive: templateData.isActive ?? true,
+      isDefault: templateData.isDefault ?? false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.checklistTemplates.set(id, template);
+    return template;
+  }
+
+  async updateChecklistTemplate(id: string, updates: Partial<ChecklistTemplate>): Promise<ChecklistTemplate> {
+    const existing = this.checklistTemplates.get(id);
+    if (!existing) throw new Error("Checklist template not found");
+    
+    const updated = { ...existing, ...updates, updatedAt: new Date() };
+    this.checklistTemplates.set(id, updated);
+    return updated;
+  }
+
+  async deleteChecklistTemplate(id: string): Promise<void> {
+    const existing = this.checklistTemplates.get(id);
+    if (!existing) throw new Error("Checklist template not found");
+    
+    // Soft delete by setting isActive to false
+    const updated = { ...existing, isActive: false, updatedAt: new Date() };
+    this.checklistTemplates.set(id, updated);
   }
 
   async getActivityLogsByOrganization(organizationId: string, limit = 50): Promise<ActivityLog[]> {

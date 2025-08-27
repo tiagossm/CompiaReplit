@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, ClipboardCheck, ListTodo, FileText, Building, Users, Settings, Bell } from "lucide-react";
+import { Shield, BarChart3, ClipboardCheck, ListTodo, FileText, Building, Users, Settings, Bell, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, hasPermission } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,12 @@ export default function Sidebar() {
       title: "Inspeções",
       href: "/inspections",
       icon: ClipboardCheck,
+      permission: "create_inspection"
+    },
+    {
+      title: "Checklists",
+      href: "/checklists",
+      icon: CheckSquare,
       permission: "create_inspection"
     },
     {

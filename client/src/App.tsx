@@ -10,6 +10,7 @@ import Inspections from "@/pages/Inspections";
 import ActionPlans from "@/pages/ActionPlans";
 import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
+import Checklists from "@/pages/Checklists";
 import AcceptInvite from "@/pages/AcceptInvite";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/Layout/Sidebar";
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/dashboard" component={() => <AppLayout><Dashboard /></AppLayout>} />
       <Route path="/organizations" component={() => <AppLayout><Organizations /></AppLayout>} />
       <Route path="/inspections" component={() => <AppLayout><Inspections /></AppLayout>} />
+      <Route path="/checklists" component={() => <AppLayout><Checklists /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
       <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />

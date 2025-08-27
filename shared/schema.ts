@@ -144,6 +144,20 @@ export const files = pgTable("files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const checklistTemplates = pgTable("checklist_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull(), // "geral", "nr-06", "nr-10", "nr-12", etc
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  items: jsonb("items").notNull(), // Array of checklist items
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const activityLogs = pgTable("activity_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -197,6 +211,12 @@ export const insertFileSchema = createInsertSchema(files).omit({
   createdAt: true
 });
 
+export const insertChecklistTemplateSchema = createInsertSchema(checklistTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   id: true,
   createdAt: true
@@ -220,6 +240,9 @@ export type InsertActionPlan = z.infer<typeof insertActionPlanSchema>;
 
 export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
+
+export type ChecklistTemplate = typeof checklistTemplates.$inferSelect;
+export type InsertChecklistTemplate = z.infer<typeof insertChecklistTemplateSchema>;
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
@@ -253,4 +276,15 @@ export const updateInspectionSchema = z.object({
     evidence: z.array(z.string()).optional()
   })).optional(),
   recommendations: z.string().optional()
+});
+
+export const createChecklistTemplateSchema = insertChecklistTemplateSchema.extend({
+  items: z.array(z.object({
+    id: z.string(),
+    item: z.string(),
+    standard: z.string().optional(),
+    category: z.string().optional(),
+    description: z.string().optional(),
+    isRequired: z.boolean().default(false)
+  }))
 });
