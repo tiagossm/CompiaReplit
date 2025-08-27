@@ -64,6 +64,7 @@ function Router() {
       <Route path="/checklists/ai-generate" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
       <Route path="/checklists/import" component={() => <AppLayout><CSVImport /></AppLayout>} />
       <Route path="/checklists/new" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
+      <Route path="/checklists/:id" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
       <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />

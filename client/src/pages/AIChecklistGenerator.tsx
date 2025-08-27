@@ -81,9 +81,9 @@ export default function AIChecklistGenerator() {
     onSuccess: (data) => {
       toast({
         title: "Checklist Gerado!",
-        description: `Template "${data.name}" criado com sucesso usando IA.`
+        description: `Template "${formData.template_name}" criado com sucesso usando IA.`
       });
-      navigate(`/checklists/${data.id}`);
+      navigate('/checklists');
     },
     onError: (error) => {
       toast({
