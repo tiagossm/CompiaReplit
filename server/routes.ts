@@ -617,12 +617,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const templateData = {
         name: req.body.name,
         description: req.body.description,
-        category: req.body.category,
+        category: req.body.parent_folder_id || req.body.category,
         organizationId: user.organizationId,
         items: items,
         isActive: true,
         isDefault: false,
-        createdBy: user.id
+        createdBy: user.id,
+        parentFolderId: req.body.parent_folder_id || null
       };
       
       const template = await storage.createChecklistTemplate(templateData);
@@ -716,6 +717,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET route for import page (returns empty template for the UI)
+  app.get('/api/checklist-templates/import', requireAuth, async (req, res) => {
+    // Return an empty template structure for the import page
+    res.json({
+      id: 'import',
+      name: 'Importar Checklist CSV',
+      description: 'Importe um checklist a partir de um arquivo CSV',
+      category: 'import',
+      items: []
+    });
+  });
+
+  // GET route for AI generator page
+  app.get('/api/checklist-templates/ai-generator', requireAuth, async (req, res) => {
+    // Return an empty template structure for the AI generator page
+    res.json({
+      id: 'ai-generator',
+      name: 'Gerar Checklist com IA',
+      description: 'Gere um checklist usando inteligência artificial',
+      category: 'ai',
+      items: []
+    });
+  });
+
   // Import checklist from CSV
   app.post('/api/checklist-templates/import', requireAuth, async (req, res) => {
     try {
@@ -724,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Usuário sem organização' });
       }
       
-      const { csv_content, name, description } = req.body;
+      const { csv_content, name, description, parent_folder_id } = req.body;
       
       // Parse CSV content and create checklist
       const lines = csv_content.split('\n').filter((line: string) => line.trim());
@@ -738,12 +763,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const template = {
         name: name || 'Checklist Importado',
         description: description || 'Importado via CSV',
-        category: 'geral',
+        category: parent_folder_id || 'geral',
         items,
         organizationId: user.organizationId,
         isActive: true,
         isDefault: false,
-        createdBy: user.id
+        createdBy: user.id,
+        parentFolderId: parent_folder_id
       };
       
       const created = await storage.createChecklistTemplate(template);
@@ -761,14 +787,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Usuário sem organização' });
       }
       
-      const { prompt, category, name } = req.body;
+      const { prompt, category, name, parent_folder_id } = req.body;
       
       // Generate checklist items based on prompt
       // For now, return a template response
       const template = {
         name: name || 'Checklist Gerado por IA',
         description: `Gerado com IA: ${prompt}`,
-        category: category || 'geral',
+        category: parent_folder_id || category || 'geral',
         items: [
           { id: '1', text: 'Item gerado 1', type: 'checkbox' as const, required: true },
           { id: '2', text: 'Item gerado 2', type: 'checkbox' as const, required: false },
@@ -777,7 +803,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: user.organizationId,
         isActive: true,
         isDefault: false,
-        createdBy: user.id
+        createdBy: user.id,
+        parentFolderId: parent_folder_id
       };
       
       const created = await storage.createChecklistTemplate(template);

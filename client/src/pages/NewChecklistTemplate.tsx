@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,9 @@ import {
   Trash2, 
   GripVertical,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Folder,
+  FolderPlus
 } from 'lucide-react';
 
 interface ChecklistField {
@@ -33,8 +35,13 @@ export default function NewChecklistTemplate() {
     name: '',
     description: '',
     category: '',
-    is_public: false
+    is_public: false,
+    parent_folder_id: ''
   });
+  
+  const [folders, setFolders] = useState<any[]>([]);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   
   const [fields, setFields] = useState<ChecklistField[]>([
     {
@@ -85,6 +92,47 @@ export default function NewChecklistTemplate() {
     'Outro'
   ];
 
+  useEffect(() => {
+    fetchFolders();
+  }, []);
+
+  const fetchFolders = async () => {
+    try {
+      const response = await fetch('/api/checklist-templates');
+      if (response.ok) {
+        const data = await response.json();
+        const foldersList = data.filter((t: any) => t.is_category_folder);
+        setFolders(foldersList);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar pastas:', error);
+    }
+  };
+
+  const createFolder = async () => {
+    if (!newFolderName.trim()) return;
+    
+    try {
+      const response = await fetch('/api/checklist-templates/folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newFolderName,
+          icon: 'folder',
+          color: 'blue'
+        })
+      });
+      
+      if (response.ok) {
+        await fetchFolders();
+        setNewFolderName('');
+        setShowCreateFolder(false);
+      }
+    } catch (error) {
+      console.error('Erro ao criar pasta:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -96,14 +144,15 @@ export default function NewChecklistTemplate() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...template,
-          fields: fields.filter(f => f.field_name) // Only include fields with names
+          fields: fields.filter(f => f.field_name), // Only include fields with names
+          parent_folder_id: template.parent_folder_id || null
         })
       });
 
-      if (!response.ok) throw new Error('Erro ao criar template');
+      if (!response.ok) throw new Error('Erro ao criar checklist');
       
       const result = await response.json();
-      alert(`Template "${result.name}" criado com sucesso!`);
+      alert(`Checklist "${result.name}" criado com sucesso!`);
       setLocation('/checklists');
     } catch (error) {
       console.error('Erro:', error);
@@ -170,10 +219,10 @@ export default function NewChecklistTemplate() {
         </Button>
         <div>
           <h1 className="text-3xl font-heading font-bold text-compia-blue">
-            Novo Template de Checklist
+            Novo Checklist de Inspeção
           </h1>
           <p className="text-muted-foreground mt-1">
-            Crie um template personalizado para suas inspeções
+            Crie um checklist personalizado para suas inspeções
           </p>
         </div>
       </div>
@@ -182,12 +231,12 @@ export default function NewChecklistTemplate() {
         {/* Template Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Informações do Template</CardTitle>
+            <CardTitle>Informações do Checklist</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Nome do Template *</Label>
+                <Label htmlFor="name">Nome do Checklist *</Label>
                 <Input
                   id="name"
                   required
@@ -231,6 +280,66 @@ export default function NewChecklistTemplate() {
               />
             </div>
 
+            {/* Folder Selection */}
+            <div>
+              <Label htmlFor="folder">Pasta (Opcional)</Label>
+              <div className="flex gap-2">
+                <Select 
+                  value={template.parent_folder_id} 
+                  onValueChange={(value) => setTemplate({...template, parent_folder_id: value})}
+                >
+                  <SelectTrigger id="folder" data-testid="template-folder" className="flex-1">
+                    <SelectValue placeholder="Selecione uma pasta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sem pasta</SelectItem>
+                    {folders.map((folder) => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        <div className="flex items-center gap-2">
+                          <Folder className="w-4 h-4" />
+                          {folder.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateFolder(!showCreateFolder)}
+                  data-testid="create-folder-btn"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {showCreateFolder && (
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    placeholder="Nome da nova pasta"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    data-testid="new-folder-name"
+                    className="flex-1"
+                  />
+                  <Button type="button" size="sm" onClick={createFolder}>
+                    Criar
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateFolder(false);
+                      setNewFolderName('');
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="public"
@@ -244,7 +353,7 @@ export default function NewChecklistTemplate() {
                 htmlFor="public" 
                 className="text-sm font-normal cursor-pointer"
               >
-                Template público (visível para todas as organizações)
+                Checklist público (visível para todas as organizações)
               </Label>
             </div>
           </CardContent>
