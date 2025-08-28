@@ -602,6 +602,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Checklist Templates - Extended functionality
+  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      // Convert fields to items format
+      const items = req.body.fields ? req.body.fields.map((field: any) => ({
+        type: field.field_type === 'boolean' ? 'checkbox' : field.field_type,
+        label: field.field_name,
+        required: field.is_required || false,
+        options: field.options ? field.options.split(',').map((o: string) => o.trim()) : undefined
+      })) : [];
+      
+      const templateData = {
+        name: req.body.name,
+        description: req.body.description,
+        category: req.body.category,
+        organizationId: user.organizationId,
+        items: items,
+        isActive: true,
+        isDefault: false,
+        createdBy: user.id
+      };
+      
+      const template = await storage.createChecklistTemplate(templateData);
+      res.status(201).json(template);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/checklist-templates/:id/duplicate', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const originalTemplate = await storage.getChecklistTemplate(id);
+      if (!originalTemplate) {
+        return res.status(404).json({ message: "Template não encontrado" });
+      }
+      
+      const duplicatedTemplate = await storage.createChecklistTemplate({
+        ...originalTemplate,
+        id: undefined,
+        name: `${originalTemplate.name} (Cópia)`,
+        createdBy: user.id,
+        createdAt: undefined,
+        updatedAt: undefined
+      });
+      
+      res.status(201).json(duplicatedTemplate);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/checklist-templates/folder', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const folderData = {
+        name: req.body.name,
+        description: req.body.description || '',
+        icon: req.body.icon || 'folder',
+        color: req.body.color || 'blue',
+        parentId: req.body.parent_folder_id || null,
+        organizationId: user.organizationId,
+        createdBy: user.id
+      };
+      
+      const folder = await storage.createChecklistFolder(folderData);
+      res.status(201).json(folder);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete('/api/checklist-templates/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const template = await storage.getChecklistTemplate(id);
+      if (!template) {
+        return res.status(404).json({ message: "Template não encontrado" });
+      }
+      
+      if (!canAccessOrganization(user, template.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para excluir este template" });
+      }
+      
+      await storage.deleteChecklistTemplate(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
   // Checklist Templates routes
   app.get('/api/checklist-templates', requireAuth, async (req, res) => {
     try {
@@ -635,6 +731,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(template);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.put('/api/checklist-templates/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const template = await storage.getChecklistTemplate(id);
+      if (!template) {
+        return res.status(404).json({ message: "Template não encontrado" });
+      }
+      
+      if (!canAccessOrganization(user, template.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para editar este template" });
+      }
+      
+      const updated = await storage.updateChecklistTemplate(id, {
+        name: req.body.name,
+        description: req.body.description,
+        category: req.body.category,
+        items: req.body.items,
+        is_public: req.body.is_public
+      });
+      
+      res.json(updated);
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }

@@ -10,12 +10,10 @@ import Inspections from "@/pages/Inspections";
 import ActionPlans from "@/pages/ActionPlans";
 import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
-import Checklists from "@/pages/Checklists";
-import ChecklistTemplatesV2 from "@/pages/ChecklistTemplatesV2";
+import ChecklistTemplates from "@/pages/ChecklistTemplates";
+import NewChecklistTemplate from "@/pages/NewChecklistTemplate";
 import ChecklistDetail from "@/pages/ChecklistDetail";
-import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
-import CSVImport from "@/pages/CSVImport";
-import ChecklistBuilder from "@/pages/ChecklistBuilder";
+import ChecklistEdit from "@/pages/ChecklistEdit";
 import NewInspection from "@/pages/NewInspection";
 import InspectionDetail from "@/pages/InspectionDetail";
 import AcceptInvite from "@/pages/AcceptInvite";
@@ -62,13 +60,11 @@ function Router() {
       <Route path="/inspections" component={() => <AppLayout><Inspections /></AppLayout>} />
       <Route path="/inspections/new" component={() => <AppLayout><NewInspection /></AppLayout>} />
       <Route path="/inspections/:id" component={() => <AppLayout><InspectionDetail /></AppLayout>} />
-      <Route path="/checklists" component={() => <AppLayout><ChecklistTemplatesV2 /></AppLayout>} />
-      <Route path="/checklist-templates" component={() => <AppLayout><ChecklistTemplatesV2 /></AppLayout>} />
-      <Route path="/checklists/ai-generator" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
-      <Route path="/checklists/csv-import" component={() => <AppLayout><CSVImport /></AppLayout>} />
-      <Route path="/checklists/builder" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
-      <Route path="/checklists/view/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
-      <Route path="/checklists/:id" component={() => <AppLayout><ChecklistBuilder /></AppLayout>} />
+      <Route path="/checklists" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
+      <Route path="/checklist-templates" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
+      <Route path="/checklists/new" component={() => <AppLayout><NewChecklistTemplate /></AppLayout>} />
+      <Route path="/checklists/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
+      <Route path="/checklists/:id/edit" component={() => <AppLayout><ChecklistEdit /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
       <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />
