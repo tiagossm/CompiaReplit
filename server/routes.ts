@@ -716,6 +716,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import checklist from CSV
+  app.post('/api/checklist-templates/import', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      if (!user?.organizationId) {
+        return res.status(403).json({ message: 'Usuário sem organização' });
+      }
+      
+      const { csv_content, name, description } = req.body;
+      
+      // Parse CSV content and create checklist
+      const lines = csv_content.split('\n').filter((line: string) => line.trim());
+      const items = lines.map((line: string, index: number) => ({
+        id: `item-${Date.now()}-${index}`,
+        text: line.trim(),
+        type: 'checkbox' as const,
+        required: false
+      }));
+      
+      const template = {
+        name: name || 'Checklist Importado',
+        description: description || 'Importado via CSV',
+        category: 'geral',
+        items,
+        organizationId: user.organizationId,
+        isActive: true,
+        isDefault: false,
+        createdBy: user.id
+      };
+      
+      const created = await storage.createChecklistTemplate(template);
+      res.status(201).json(created);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  // Generate checklist with AI
+  app.post('/api/checklist-templates/ai-generator', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      if (!user?.organizationId) {
+        return res.status(403).json({ message: 'Usuário sem organização' });
+      }
+      
+      const { prompt, category, name } = req.body;
+      
+      // Generate checklist items based on prompt
+      // For now, return a template response
+      const template = {
+        name: name || 'Checklist Gerado por IA',
+        description: `Gerado com IA: ${prompt}`,
+        category: category || 'geral',
+        items: [
+          { id: '1', text: 'Item gerado 1', type: 'checkbox' as const, required: true },
+          { id: '2', text: 'Item gerado 2', type: 'checkbox' as const, required: false },
+          { id: '3', text: 'Item gerado 3', type: 'checkbox' as const, required: false }
+        ],
+        organizationId: user.organizationId,
+        isActive: true,
+        isDefault: false,
+        createdBy: user.id
+      };
+      
+      const created = await storage.createChecklistTemplate(template);
+      res.status(201).json(created);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
   // Checklist Templates routes
   app.get('/api/checklist-templates', requireAuth, async (req, res) => {
     try {

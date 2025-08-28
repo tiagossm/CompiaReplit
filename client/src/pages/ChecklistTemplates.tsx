@@ -102,7 +102,7 @@ export default function ChecklistTemplates() {
   };
 
   const deleteTemplate = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este template?')) return;
+    if (!confirm('Tem certeza que deseja excluir este checklist?')) return;
     
     try {
       const response = await fetch(`/api/checklist-templates/${id}`, {
@@ -123,7 +123,7 @@ export default function ChecklistTemplates() {
       });
       if (response.ok) {
         fetchTemplates();
-        alert(`Template "${template.name}" duplicado com sucesso!`);
+        alert(`Checklist "${template.name}" duplicado com sucesso!`);
       }
     } catch (error) {
       console.error('Erro ao duplicar template:', error);
@@ -152,7 +152,7 @@ export default function ChecklistTemplates() {
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `templates_checklist_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `checklists_${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -250,10 +250,10 @@ export default function ChecklistTemplates() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-heading font-bold text-compia-blue">
-            Templates de Checklist
+            Checklists de Inspeção
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie seus templates de inspeção e checklists
+            Gerencie seus checklists e modelos de inspeção
           </p>
         </div>
         
@@ -292,7 +292,7 @@ export default function ChecklistTemplates() {
             data-testid="new-template"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Novo Template
+            Novo Checklist
           </Button>
         </div>
       </div>
@@ -302,7 +302,7 @@ export default function ChecklistTemplates() {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar templates..."
+            placeholder="Buscar checklists..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -473,11 +473,11 @@ export default function ChecklistTemplates() {
       {filteredTemplates.length === 0 && (
         <div className="text-center py-12">
           <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Nenhum template encontrado</h2>
+          <h2 className="text-xl font-semibold mb-2">Nenhum checklist encontrado</h2>
           <p className="text-muted-foreground mb-4">
             {searchTerm ? 
-              'Tente ajustar sua busca ou criar um novo template.' :
-              'Comece criando seu primeiro template de checklist.'
+              'Tente ajustar sua busca ou criar um novo checklist.' :
+              'Comece criando seu primeiro checklist de inspeção.'
             }
           </p>
           <Button
@@ -485,7 +485,7 @@ export default function ChecklistTemplates() {
             className="bg-compia-blue hover:bg-compia-blue/90"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Criar Template
+            Criar Checklist
           </Button>
         </div>
       )}

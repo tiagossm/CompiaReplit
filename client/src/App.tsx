@@ -63,8 +63,10 @@ function Router() {
       <Route path="/checklists" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
       <Route path="/checklist-templates" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
       <Route path="/checklists/new" component={() => <AppLayout><NewChecklistTemplate /></AppLayout>} />
-      <Route path="/checklists/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
+      <Route path="/checklists/import" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
+      <Route path="/checklists/ai-generator" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
       <Route path="/checklists/:id/edit" component={() => <AppLayout><ChecklistEdit /></AppLayout>} />
+      <Route path="/checklists/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
       <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />

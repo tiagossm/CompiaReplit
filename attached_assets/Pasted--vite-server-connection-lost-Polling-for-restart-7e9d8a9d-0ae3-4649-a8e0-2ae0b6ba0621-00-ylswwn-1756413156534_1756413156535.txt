@@ -1,0 +1,64 @@
+[vite] server connection lost. Polling for restart...
+7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2  GET https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/ 502 (Bad Gateway)
+window.fetch @ 7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2
+apply @ 7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/__replco/static/devtools/injected.js:253
+ping @ 7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/@vite/client:736
+waitForSuccessfulPing @ 7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/@vite/client:749
+(anonymous) @ 7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/@vite/client:561Understand this error
+Console.js:61 [TEMPLATES] [REACT] Buscando templates...
+Console.js:61 [TEMPLATES] [REACT] Templates recebidos: 1
+Console.js:61 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+Mt.forEach.n.<computed> @ Console.js:61
+(anonymous) @ @radix-ui_react-dialog.js?v=5f327845:341
+commitHookEffectListMount @ chunk-WERSD76P.js?v=5f327845:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=5f327845:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=5f327845:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=5f327845:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=5f327845:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=5f327845:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=5f327845:19447
+commitRootImpl @ chunk-WERSD76P.js?v=5f327845:19416
+commitRoot @ chunk-WERSD76P.js?v=5f327845:19277
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=5f327845:18895
+flushSyncCallbacks @ chunk-WERSD76P.js?v=5f327845:9119
+(anonymous) @ chunk-WERSD76P.js?v=5f327845:18627Understand this warning
+Console.js:61 [TEMPLATES] [REACT] Buscando templates...
+Console.js:61 [TEMPLATES] [REACT] Templates recebidos: 2
+Console.js:61 [TEMPLATES] [REACT] Buscando templates...
+Console.js:61 [TEMPLATES] [REACT] Templates recebidos: 2
+injected.js:253  GET https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/api/checklist-templates/import 404 (Not Found)
+window.fetch @ Network.js:219
+apply @ injected.js:253
+fetchTemplate @ ChecklistDetail.tsx:52
+(anonymous) @ ChecklistDetail.tsx:46
+commitHookEffectListMount @ chunk-WERSD76P.js?v=5f327845:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=5f327845:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=5f327845:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=5f327845:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=5f327845:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=5f327845:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=5f327845:19447
+commitRootImpl @ chunk-WERSD76P.js?v=5f327845:19416
+commitRoot @ chunk-WERSD76P.js?v=5f327845:19277
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=5f327845:18895
+flushSyncCallbacks @ chunk-WERSD76P.js?v=5f327845:9119
+(anonymous) @ chunk-WERSD76P.js?v=5f327845:18627Understand this error
+Console.js:61 Template não encontrado
+Mt.forEach.n.<computed> @ Console.js:61
+fetchTemplate @ ChecklistDetail.tsx:57
+await in fetchTemplate
+(anonymous) @ ChecklistDetail.tsx:46
+commitHookEffectListMount @ chunk-WERSD76P.js?v=5f327845:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=5f327845:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=5f327845:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=5f327845:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=5f327845:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=5f327845:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=5f327845:19447
+commitRootImpl @ chunk-WERSD76P.js?v=5f327845:19416
+commitRoot @ chunk-WERSD76P.js?v=5f327845:19277
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=5f327845:18895
+flushSyncCallbacks @ chunk-WERSD76P.js?v=5f327845:9119
+(anonymous) @ chunk-WERSD76P.js?v=5f327845:18627Understand this error
+Console.js:61 [TEMPLATES] [REACT] Buscando templates...
+Console.js:61 [TEMPLATES] [REACT] Templates recebidos: 2
