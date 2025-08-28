@@ -407,6 +407,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: originalInspection.description,
         location: originalInspection.location,
         checklistTemplateId: originalInspection.checklistTemplateId,
+        organizationId: originalInspection.organizationId,
+        inspectorId: user.id,
       };
       
       const clonedInspection = await storage.createInspection(clonedData);

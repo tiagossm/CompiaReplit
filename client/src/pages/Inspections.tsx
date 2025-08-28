@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'wouter';
+import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,31 +37,70 @@ export default function Inspections() {
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
 
-  const { data: inspections, isLoading } = useQuery<Inspection[]>({
-    queryKey: ['/api/inspections'],
-  });
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [, setLocation] = useLocation();
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/inspections/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
-      setShowDeleteModal(null);
-    }
-  });
+  useEffect(() => {
+    fetchInspections();
+  }, []);
 
-  const cloneMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/inspections/${id}/clone`, { method: 'POST' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
-    }
-  });
-
-  const handleDeleteInspection = (id: string) => {
-    deleteMutation.mutate(id);
+  const fetchInspections = () => {
+    console.log('[INSPECTIONS] [REACT] Buscando inspeções de: /api/inspections');
+    
+    fetch('/api/inspections')
+      .then(res => res.json())
+      .then(data => {
+        console.log('[INSPECTIONS] [REACT] Inspeções recebidas:', data.length || 0);
+        setInspections(data || []);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('[INSPECTIONS] [REACT] Erro ao carregar inspeções:', error);
+        setLoading(false);
+      });
   };
 
-  const handleCloneInspection = (id: string) => {
-    cloneMutation.mutate(id);
+  const handleDeleteInspection = async (id: string) => {
+    try {
+      const response = await fetch(`/api/inspections/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setInspections(prev => prev.filter(inspection => inspection.id !== id));
+        setShowDeleteModal(null);
+        alert('Inspeção excluída com sucesso!');
+      } else {
+        throw new Error('Erro ao excluir inspeção');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir inspeção:', error);
+      alert('Erro ao excluir inspeção. Tente novamente.');
+    }
+  };
+
+  const handleCloneInspection = async (id: string, title: string) => {
+    try {
+      const response = await fetch(`/api/inspections/${id}/clone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        await response.json();
+        await fetchInspections();
+        alert(`Inspeção "${title}" duplicada com sucesso! Apenas os dados básicos foram copiados.`);
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao clonar inspeção');
+      }
+    } catch (error) {
+      console.error('Erro ao clonar inspeção:', error);
+      alert(`Erro ao clonar inspeção: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
   };
 
   const handleExportInspections = async () => {
@@ -158,7 +198,7 @@ export default function Inspections() {
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="p-6" data-testid="inspections-loading">
         <div className="animate-pulse space-y-6">
@@ -275,7 +315,7 @@ export default function Inspections() {
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => handleCloneInspection(inspection.id)}
+                    onClick={() => handleCloneInspection(inspection.id, inspection.title)}
                     data-testid={`clone-inspection-${inspection.id}`}
                   >
                     <Copy className="w-4 h-4" />
