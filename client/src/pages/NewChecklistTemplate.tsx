@@ -285,14 +285,14 @@ export default function NewChecklistTemplate() {
               <Label htmlFor="folder">Pasta (Opcional)</Label>
               <div className="flex gap-2">
                 <Select 
-                  value={template.parent_folder_id} 
-                  onValueChange={(value) => setTemplate({...template, parent_folder_id: value})}
+                  value={template.parent_folder_id || 'none'} 
+                  onValueChange={(value) => setTemplate({...template, parent_folder_id: value === 'none' ? '' : value})}
                 >
                   <SelectTrigger id="folder" data-testid="template-folder" className="flex-1">
                     <SelectValue placeholder="Selecione uma pasta" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem pasta</SelectItem>
+                    <SelectItem value="none">Sem pasta</SelectItem>
                     {folders.map((folder) => (
                       <SelectItem key={folder.id} value={folder.id}>
                         <div className="flex items-center gap-2">
