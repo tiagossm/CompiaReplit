@@ -237,45 +237,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       
-      // Extract data from request body without validation
-      const title = req.body.title;
-      const location = req.body.location; 
-      const description = req.body.description;
-      const checklistTemplateId = req.body.checklistTemplateId;
-      let scheduledAt = req.body.scheduledAt;
+      // Extract all data from request body
+      const {
+        title,
+        location, 
+        description,
+        checklistTemplateId,
+        scheduledAt,
+        organizationId,
+        priority,
+        companyName,
+        zipCode,
+        fullAddress,
+        latitude,
+        longitude,
+        technicianName,
+        technicianEmail,
+        companyResponsibleName,
+        aiAssistantId,
+        actionPlanType
+      } = req.body;
       
       if (!user) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
       // Validate required fields manually
-      if (!title || !location || !checklistTemplateId) {
-        return res.status(400).json({ message: "Campos obrigatórios: title, location, checklistTemplateId" });
+      if (!title || !location) {
+        return res.status(400).json({ message: "Campos obrigatórios: title, location" });
       }
       
-      // Get the checklist template
-      const template = await storage.getChecklistTemplate(checklistTemplateId);
-      if (!template) {
-        return res.status(404).json({ message: "Template de checklist não encontrado" });
+      // Get the checklist template if provided and not "none"
+      let template = null;
+      if (checklistTemplateId && checklistTemplateId !== 'none') {
+        template = await storage.getChecklistTemplate(checklistTemplateId);
+        if (!template) {
+          return res.status(404).json({ message: "Template de checklist não encontrado" });
+        }
       }
       
       // Process scheduledAt to ensure it's a Date
+      let processedScheduledAt = scheduledAt;
       if (scheduledAt && typeof scheduledAt === 'string') {
-        scheduledAt = new Date(scheduledAt);
+        processedScheduledAt = new Date(scheduledAt);
       } else if (!scheduledAt) {
-        scheduledAt = new Date();
+        processedScheduledAt = new Date();
       }
       
-      // Create inspection data manually (no schema validation)
+      // Create inspection data with all new fields
       const inspectionData = {
         title: String(title),
         location: String(location),
         description: description ? String(description) : null,
-        checklistTemplateId: String(checklistTemplateId),
-        scheduledAt: scheduledAt,
+        checklistTemplateId: (checklistTemplateId && checklistTemplateId !== 'none') ? String(checklistTemplateId) : null,
+        scheduledAt: processedScheduledAt,
         status: 'draft' as const,
-        organizationId: user?.organizationId || 'master-org-id',
-        inspectorId: user?.id || 'admin-id'
+        organizationId: organizationId || user?.organizationId || 'master-org-id',
+        inspectorId: user?.id || 'admin-id',
+        
+        // New fields
+        priority: priority || 'medium',
+        companyName: companyName || null,
+        zipCode: zipCode || null,
+        fullAddress: fullAddress || null,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        technicianName: technicianName || user?.name || null,
+        technicianEmail: technicianEmail || user?.email || null,
+        companyResponsibleName: companyResponsibleName || null,
+        aiAssistantId: aiAssistantId || 'GENERAL',
+        actionPlanType: actionPlanType || '5W2H',
+        
+        // Initialize checklist from template if available
+        checklist: template ? template.items : []
       };
       
       console.log('Route - User data:', { id: user?.id, organizationId: user?.organizationId });
@@ -286,11 +320,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log activity
       await storage.createActivityLog({
         userId: user?.id || 'admin-id',
-        organizationId: user?.organizationId || 'master-org-id',
+        organizationId: organizationId || user?.organizationId || 'master-org-id',
         action: 'Inspeção criada',
         entityType: 'inspection',
         entityId: inspection.id,
-        details: { title, location }
+        details: { 
+          title, 
+          location,
+          companyName,
+          priority,
+          aiAssistantId,
+          hasTemplate: !!template
+        }
       });
       
       res.status(201).json(inspection);

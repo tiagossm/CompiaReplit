@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, pgEnum, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -106,7 +106,21 @@ export const inspections = pgTable("inspections", {
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  
+  // New fields for complete integration
+  checklistTemplateId: varchar("checklist_template_id").references(() => checklistTemplates.id),
+  priority: text("priority").default("medium"), // low, medium, high, urgent
+  companyName: text("company_name"),
+  zipCode: varchar("zip_code", { length: 10 }),
+  fullAddress: text("full_address"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  technicianName: text("technician_name"),
+  technicianEmail: text("technician_email"),
+  companyResponsibleName: text("company_responsible_name"),
+  aiAssistantId: varchar("ai_assistant_id").default("GENERAL"),
+  actionPlanType: varchar("action_plan_type").default("5W2H")
 });
 
 export const actionPlans = pgTable("action_plans", {
