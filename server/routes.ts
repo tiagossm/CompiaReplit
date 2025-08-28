@@ -660,18 +660,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/checklist-templates/folder', requireAuth, async (req, res) => {
     try {
       const { user } = req;
+      // Create folder as a special type of template with category='__folder__'
       const folderData = {
         name: req.body.name,
-        description: req.body.description || '',
-        icon: req.body.icon || 'folder',
-        color: req.body.color || 'blue',
-        parentId: req.body.parent_folder_id || null,
+        description: JSON.stringify({
+          is_category_folder: true,
+          folder_icon: req.body.icon || 'folder',
+          folder_color: req.body.color || 'blue',
+          parent_folder_id: req.body.parent_folder_id || null,
+          user_description: req.body.description || ''
+        }),
+        category: '__folder__', // Special category for folders
+        items: [], // Folders don't have items
         organizationId: user.organizationId,
+        isActive: true,
+        isDefault: false,
         createdBy: user.id
       };
       
-      const folder = await storage.createChecklistFolder(folderData);
-      res.status(201).json(folder);
+      const folder = await storage.createChecklistTemplate(folderData);
+      
+      // Transform response to include folder metadata
+      const folderMetadata = JSON.parse(folder.description || '{}');
+      res.status(201).json({
+        ...folder,
+        is_category_folder: true,
+        folder_icon: folderMetadata.folder_icon,
+        folder_color: folderMetadata.folder_color,
+        parent_folder_id: folderMetadata.parent_folder_id,
+        description: folderMetadata.user_description
+      });
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
@@ -711,7 +729,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         templates = await storage.getChecklistTemplatesByOrganization(user?.organizationId || 'master-org-id');
       }
       
-      res.json(templates);
+      // Transform templates to include folder metadata
+      const transformedTemplates = templates.map(template => {
+        if (template.category === '__folder__' && template.description) {
+          try {
+            const metadata = JSON.parse(template.description);
+            return {
+              ...template,
+              is_category_folder: true,
+              folder_icon: metadata.folder_icon || 'folder',
+              folder_color: metadata.folder_color || 'blue',
+              parent_folder_id: metadata.parent_folder_id || null,
+              description: metadata.user_description || '',
+              fields_count: 0,
+              created_at: template.createdAt,
+              updated_at: template.updatedAt
+            };
+          } catch (e) {
+            console.error('Error parsing folder metadata:', e);
+          }
+        }
+        return {
+          ...template,
+          is_category_folder: false,
+          fields_count: template.items?.length || 0,
+          created_at: template.createdAt,
+          updated_at: template.updatedAt
+        };
+      });
+      
+      res.json(transformedTemplates);
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
