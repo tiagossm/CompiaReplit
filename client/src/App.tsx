@@ -14,6 +14,8 @@ import ChecklistTemplates from "@/pages/ChecklistTemplates";
 import NewChecklistTemplate from "@/pages/NewChecklistTemplate";
 import ChecklistDetail from "@/pages/ChecklistDetail";
 import ChecklistEdit from "@/pages/ChecklistEdit";
+import CSVImport from "@/pages/CSVImport";
+import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
 import NewInspection from "@/pages/NewInspection";
 import InspectionDetail from "@/pages/InspectionDetail";
 import AcceptInvite from "@/pages/AcceptInvite";
@@ -63,8 +65,8 @@ function Router() {
       <Route path="/checklists" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
       <Route path="/checklist-templates" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
       <Route path="/checklists/new" component={() => <AppLayout><NewChecklistTemplate /></AppLayout>} />
-      <Route path="/checklists/import" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
-      <Route path="/checklists/ai-generator" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
+      <Route path="/checklists/import" component={() => <AppLayout><CSVImport /></AppLayout>} />
+      <Route path="/checklists/ai-generator" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
       <Route path="/checklists/:id/edit" component={() => <AppLayout><ChecklistEdit /></AppLayout>} />
       <Route path="/checklists/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
