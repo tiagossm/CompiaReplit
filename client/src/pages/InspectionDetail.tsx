@@ -30,10 +30,17 @@ export default function InspectionDetail() {
   const queryClient = useQueryClient();
   const inspectionId = params?.id;
 
-  const { data: inspection, isLoading } = useQuery<Inspection>({
+  const { data: inspection, isLoading, error } = useQuery<Inspection>({
     queryKey: ['/api/inspections', inspectionId],
     enabled: !!inspectionId,
+    retry: false,
   });
+
+  // Debug logging
+  console.log('InspectionDetail - inspectionId:', inspectionId);
+  console.log('InspectionDetail - inspection:', inspection);
+  console.log('InspectionDetail - isLoading:', isLoading);
+  console.log('InspectionDetail - error:', error);
 
   const updateStatusMutation = useMutation({
     mutationFn: (status: string) => 

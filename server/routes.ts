@@ -633,6 +633,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/inspections/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      const inspection = await storage.getInspection(id);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspeção não encontrada" });
+      }
+      
+      // Check permissions
+      if (!canAccessOrganization(user, inspection.organizationId) && 
+          user.id !== inspection.inspectorId && 
+          user.role !== 'system_admin') {
+        return res.status(403).json({ message: "Sem permissão para acessar esta inspeção" });
+      }
+      
+      res.json(inspection);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
   app.get('/api/inspections', requireAuth, async (req, res) => {
     try {
       const { user } = req;

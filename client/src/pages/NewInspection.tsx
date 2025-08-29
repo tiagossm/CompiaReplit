@@ -105,8 +105,15 @@ export default function NewInspection() {
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest('/api/inspections', 'POST', data),
     onSuccess: (result: any) => {
+      console.log('NewInspection - mutation success result:', result);
       queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
-      setLocation(`/inspections/${result.id}`);
+      if (result && result.id) {
+        console.log('NewInspection - navigating to:', `/inspections/${result.id}`);
+        setLocation(`/inspections/${result.id}`);
+      } else {
+        console.error('NewInspection - no ID in result:', result);
+        setLocation('/inspections');
+      }
     },
     onError: (error: any) => {
       console.error('Erro ao criar inspeção:', error);
