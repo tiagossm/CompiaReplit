@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Building2, Save } from "lucide-react";
+import { ArrowLeft, Building2, Save, Search } from "lucide-react";
 import type { Company, Organization } from "@shared/schema";
 
 const companyFormSchema = z.object({
@@ -56,6 +56,7 @@ export default function CompanyForm() {
   const [match, params] = useRoute("/companies/:id/edit");
   const isEdit = !!match && params?.id;
   const { toast } = useToast();
+  const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);
 
   const { data: organizations = [] } = useQuery<Organization[]>({
     queryKey: ["/api/organizations"],
@@ -120,6 +121,65 @@ export default function CompanyForm() {
       });
     }
   }, [company, isEdit, form]);
+
+  // Função para limpar formatação do CNPJ
+  const cleanCNPJ = (cnpj: string) => {
+    return cnpj.replace(/\D/g, '');
+  };
+
+  // Função para buscar dados da empresa pelo CNPJ
+  const searchCompanyByCNPJ = async () => {
+    const cnpj = cleanCNPJ(form.getValues('cnpj') || '');
+    
+    if (cnpj.length !== 14) {
+      toast({
+        title: "CNPJ inválido",
+        description: "CNPJ deve ter 14 dígitos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearchingCNPJ(true);
+
+    try {
+      // Usando API pública da ReceitaWS
+      const response = await fetch(`https://www.receitaws.com.br/v1/cnpj/${cnpj}`);
+      const data = await response.json();
+
+      if (data.status === 'ERROR') {
+        toast({
+          title: "CNPJ não encontrado",
+          description: data.message || "CNPJ não foi encontrado na Receita Federal",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Preencher os campos automaticamente
+      form.setValue('name', data.nome || '');
+      form.setValue('email', data.email || '');
+      form.setValue('phone', data.telefone || '');
+      form.setValue('address', `${data.logradouro || ''}, ${data.numero || ''} ${data.complemento || ''}`.trim());
+      form.setValue('city', data.municipio || '');
+      form.setValue('state', data.uf || '');
+      form.setValue('zipCode', data.cep?.replace(/\D/g, '') || '');
+
+      toast({
+        title: "Dados encontrados!",
+        description: "Os dados da empresa foram preenchidos automaticamente",
+      });
+
+    } catch (error) {
+      toast({
+        title: "Erro ao buscar dados",
+        description: "Não foi possível consultar os dados do CNPJ. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearchingCNPJ(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {
@@ -215,7 +275,23 @@ export default function CompanyForm() {
                     <FormItem>
                       <FormLabel>CNPJ</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="00.000.000/0001-00" data-testid="input-cnpj" />
+                        <div className="flex gap-2">
+                          <Input {...field} placeholder="00.000.000/0001-00" data-testid="input-cnpj" />
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="icon"
+                            onClick={searchCompanyByCNPJ}
+                            disabled={isSearchingCNPJ || !field.value}
+                            data-testid="button-search-cnpj"
+                          >
+                            {isSearchingCNPJ ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                            ) : (
+                              <Search className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
