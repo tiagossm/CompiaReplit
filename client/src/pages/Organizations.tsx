@@ -301,12 +301,12 @@ export default function Organizations() {
                           {log.createdAt ? new Date(log.createdAt).toLocaleString('pt-BR') : 'Data não informada'}
                         </p>
                         {log.details && (
-                          <p className="text-xs text-muted-foreground mt-1" data-testid={`activity-details-${log.id}`}>
+                          <div className="text-xs text-muted-foreground mt-1" data-testid={`activity-details-${log.id}`}>
                             {typeof log.details === 'object' && log.details !== null
                               ? JSON.stringify(log.details) 
                               : String(log.details || '')
                             }
-                          </p>
+                          </div>
                         )}
                       </div>
                     </div>

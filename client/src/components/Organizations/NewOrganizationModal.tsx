@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -107,6 +107,11 @@ export default function NewOrganizationModal({ open, onOpenChange }: NewOrganiza
       const response = await fetch(`/api/cnpj/${cnpj}`);
       
       if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType?.includes('application/json')) {
+          throw new Error('Resposta não é JSON válido');
+        }
+        
         const data = await response.json();
         
         if (data && (data.nome || data.razao_social)) {
@@ -163,6 +168,9 @@ export default function NewOrganizationModal({ open, onOpenChange }: NewOrganiza
             <Building className="w-5 h-5" />
             Nova Organização
           </DialogTitle>
+          <DialogDescription>
+            Crie uma nova organização no sistema. Use a busca por CNPJ para preenchimento automático dos dados.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
