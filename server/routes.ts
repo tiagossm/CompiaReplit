@@ -127,6 +127,275 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Companies routes
+  app.get('/api/companies', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { organizationId } = req.query;
+      
+      const targetOrgId = organizationId as string || user?.organizationId || 'master-org-id';
+      
+      if (!user || !canAccessOrganization(user, targetOrgId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar empresas desta organização" });
+      }
+      
+      const companies = await storage.getCompaniesByOrganization(targetOrgId);
+      res.json(companies);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get('/api/companies/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const company = await storage.getCompany(id);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar esta empresa" });
+      }
+      
+      res.json(company);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/companies', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      
+      if (!user || !hasPermission(user, 'manage_inspections')) {
+        return res.status(403).json({ message: "Sem permissão para cadastrar empresas" });
+      }
+      
+      const companyData = {
+        ...req.body,
+        organizationId: req.body.organizationId || user.organizationId,
+        createdBy: user.id
+      };
+      
+      const company = await storage.createCompany(companyData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: company.organizationId,
+        action: 'create_company',
+        entityType: 'company',
+        entityId: company.id,
+        details: { name: company.name, cnpj: company.cnpj }
+      });
+      
+      res.status(201).json(company);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.put('/api/companies/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const company = await storage.getCompany(id);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId) || !hasPermission(user, 'manage_inspections')) {
+        return res.status(403).json({ message: "Sem permissão para editar esta empresa" });
+      }
+      
+      const updated = await storage.updateCompany(id, req.body);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: company.organizationId,
+        action: 'update_company',
+        entityType: 'company',
+        entityId: id,
+        details: { changes: req.body }
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete('/api/companies/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const company = await storage.getCompany(id);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId) || !hasPermission(user, 'manage_inspections')) {
+        return res.status(403).json({ message: "Sem permissão para excluir esta empresa" });
+      }
+      
+      await storage.deleteCompany(id);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: company.organizationId,
+        action: 'delete_company',
+        entityType: 'company',
+        entityId: id,
+        details: { name: company.name }
+      });
+      
+      res.json({ message: "Empresa excluída com sucesso" });
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Company Locations routes
+  app.get('/api/companies/:companyId/locations', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { companyId } = req.params;
+      
+      const company = await storage.getCompany(companyId);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para acessar locais desta empresa" });
+      }
+      
+      const locations = await storage.getCompanyLocationsByCompany(companyId);
+      res.json(locations);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/companies/:companyId/locations', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { companyId } = req.params;
+      
+      const company = await storage.getCompany(companyId);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId) || !hasPermission(user, 'manage_inspections')) {
+        return res.status(403).json({ message: "Sem permissão para cadastrar locais" });
+      }
+      
+      const locationData = {
+        ...req.body,
+        companyId,
+        createdBy: user.id
+      };
+      
+      const location = await storage.createCompanyLocation(locationData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: company.organizationId,
+        action: 'create_location',
+        entityType: 'location',
+        entityId: location.id,
+        details: { name: location.name, type: location.type }
+      });
+      
+      res.status(201).json(location);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.put('/api/companies/locations/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const location = await storage.getCompanyLocation(id);
+      if (!location) {
+        return res.status(404).json({ message: "Local não encontrado" });
+      }
+      
+      const company = await storage.getCompany(location.companyId);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId) || !hasPermission(user, 'manage_inspections')) {
+        return res.status(403).json({ message: "Sem permissão para editar este local" });
+      }
+      
+      const updated = await storage.updateCompanyLocation(id, req.body);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: company.organizationId,
+        action: 'update_location',
+        entityType: 'location',
+        entityId: id,
+        details: { changes: req.body }
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete('/api/companies/locations/:id', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+      
+      const location = await storage.getCompanyLocation(id);
+      if (!location) {
+        return res.status(404).json({ message: "Local não encontrado" });
+      }
+      
+      const company = await storage.getCompany(location.companyId);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      
+      if (!user || !canAccessOrganization(user, company.organizationId) || !hasPermission(user, 'manage_inspections')) {
+        return res.status(403).json({ message: "Sem permissão para excluir este local" });
+      }
+      
+      await storage.deleteCompanyLocation(id);
+      
+      // Log activity
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: company.organizationId,
+        action: 'delete_location',
+        entityType: 'location',
+        entityId: id,
+        details: { name: location.name }
+      });
+      
+      res.json({ message: "Local excluído com sucesso" });
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
   // Users routes
   app.get('/api/users', requireAuth, async (req, res) => {
     try {

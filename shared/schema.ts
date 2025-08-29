@@ -158,6 +158,73 @@ export const files = pgTable("files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Companies table for managing company registrations
+export const companies = pgTable("companies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  cnpj: varchar("cnpj", { length: 18 }),
+  email: text("email"),
+  phone: text("phone"),
+  website: text("website"),
+  
+  // Address fields
+  address: text("address"),
+  city: text("city"),
+  state: varchar("state", { length: 2 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  
+  // Responsible person
+  responsibleName: text("responsible_name"),
+  responsibleRole: text("responsible_role"),
+  responsibleEmail: text("responsible_email"),
+  responsiblePhone: text("responsible_phone"),
+  
+  // Technical responsible
+  technicalResponsibleName: text("technical_responsible_name"),
+  technicalResponsibleRole: text("technical_responsible_role"),
+  technicalResponsibleEmail: text("technical_responsible_email"),
+  technicalResponsiblePhone: text("technical_responsible_phone"),
+  technicalResponsibleCertification: text("technical_responsible_certification"),
+  
+  // Organization association
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  
+  // Metadata
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Company locations/sites table
+export const companyLocations = pgTable("company_locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id").notNull().references(() => companies.id),
+  name: text("name").notNull(),
+  type: text("type"), // warehouse, office, factory, construction site, etc
+  
+  // Address
+  address: text("address"),
+  city: text("city"),
+  state: varchar("state", { length: 2 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  
+  // Location responsible
+  responsibleName: text("responsible_name"),
+  responsiblePhone: text("responsible_phone"),
+  responsibleEmail: text("responsible_email"),
+  
+  // Metadata
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const checklistFolders = pgTable("checklist_folders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -272,6 +339,18 @@ export const insertChecklistTemplateSchema = createInsertSchema(checklistTemplat
   lastUsedAt: true
 });
 
+export const insertCompanySchema = createInsertSchema(companies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertCompanyLocationSchema = createInsertSchema(companyLocations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   id: true,
   createdAt: true
@@ -301,6 +380,12 @@ export type InsertChecklistFolder = z.infer<typeof insertChecklistFolderSchema>;
 
 export type ChecklistTemplate = typeof checklistTemplates.$inferSelect;
 export type InsertChecklistTemplate = z.infer<typeof insertChecklistTemplateSchema>;
+
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+
+export type CompanyLocation = typeof companyLocations.$inferSelect;
+export type InsertCompanyLocation = z.infer<typeof insertCompanyLocationSchema>;
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;

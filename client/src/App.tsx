@@ -18,6 +18,8 @@ import CSVImport from "@/pages/CSVImport";
 import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
 import NewInspection from "@/pages/NewInspection";
 import InspectionDetail from "@/pages/InspectionDetail";
+import Companies from "@/pages/Companies";
+import CompanyForm from "@/pages/CompanyForm";
 import AcceptInvite from "@/pages/AcceptInvite";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/Layout/Sidebar";
@@ -72,6 +74,9 @@ function Router() {
       <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
       <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
       <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />
+      <Route path="/companies" component={() => <AppLayout><Companies /></AppLayout>} />
+      <Route path="/companies/new" component={() => <AppLayout><CompanyForm /></AppLayout>} />
+      <Route path="/companies/:id/edit" component={() => <AppLayout><CompanyForm /></AppLayout>} />
       <Route component={NotFound} />
     </Switch>
   );

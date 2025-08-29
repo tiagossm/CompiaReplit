@@ -7,13 +7,15 @@ import {
   type File, type InsertFile,
   type ActivityLog, type InsertActivityLog,
   type ChecklistTemplate, type InsertChecklistTemplate,
-  type ChecklistFolder, type InsertChecklistFolder
+  type ChecklistFolder, type InsertChecklistFolder,
+  type Company, type InsertCompany,
+  type CompanyLocation, type InsertCompanyLocation
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { 
   organizations, users, invitations, inspections, actionPlans, 
-  files, checklistTemplates, checklistFolders, activityLogs 
+  files, checklistTemplates, checklistFolders, activityLogs, companies, companyLocations 
 } from "@shared/schema";
 import { eq, and, isNull, desc } from "drizzle-orm";
 
@@ -76,6 +78,20 @@ export interface IStorage {
   // Activity Logs
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
   getActivityLogsByOrganization(organizationId: string, limit?: number): Promise<ActivityLog[]>;
+  
+  // Companies
+  getCompany(id: string): Promise<Company | undefined>;
+  getCompaniesByOrganization(organizationId: string): Promise<Company[]>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: string, updates: Partial<Company>): Promise<Company>;
+  deleteCompany(id: string): Promise<void>;
+  
+  // Company Locations
+  getCompanyLocation(id: string): Promise<CompanyLocation | undefined>;
+  getCompanyLocationsByCompany(companyId: string): Promise<CompanyLocation[]>;
+  createCompanyLocation(location: InsertCompanyLocation): Promise<CompanyLocation>;
+  updateCompanyLocation(id: string, updates: Partial<CompanyLocation>): Promise<CompanyLocation>;
+  deleteCompanyLocation(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -88,6 +104,8 @@ export class MemStorage implements IStorage {
   private checklistFolders = new Map<string, ChecklistFolder>();
   private checklistTemplates = new Map<string, ChecklistTemplate>();
   private activityLogs: ActivityLog[] = [];
+  private companies = new Map<string, Company>();
+  private companyLocations = new Map<string, CompanyLocation>();
 
   constructor() {
     this.initializeData();
@@ -511,6 +529,86 @@ export class MemStorage implements IStorage {
       .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
       .slice(0, limit);
   }
+  
+  // Companies
+  async getCompany(id: string): Promise<Company | undefined> {
+    return this.companies.get(id);
+  }
+
+  async getCompaniesByOrganization(organizationId: string): Promise<Company[]> {
+    return Array.from(this.companies.values())
+      .filter(company => company.organizationId === organizationId && company.isActive);
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const id = randomUUID();
+    const newCompany: Company = {
+      ...company,
+      id,
+      isActive: company.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.companies.set(id, newCompany);
+    return newCompany;
+  }
+
+  async updateCompany(id: string, updates: Partial<Company>): Promise<Company> {
+    const existing = this.companies.get(id);
+    if (!existing) throw new Error("Company not found");
+    
+    const updated = { ...existing, ...updates, updatedAt: new Date() };
+    this.companies.set(id, updated);
+    return updated;
+  }
+
+  async deleteCompany(id: string): Promise<void> {
+    const existing = this.companies.get(id);
+    if (!existing) throw new Error("Company not found");
+    
+    const updated = { ...existing, isActive: false, updatedAt: new Date() };
+    this.companies.set(id, updated);
+  }
+
+  // Company Locations
+  async getCompanyLocation(id: string): Promise<CompanyLocation | undefined> {
+    return this.companyLocations.get(id);
+  }
+
+  async getCompanyLocationsByCompany(companyId: string): Promise<CompanyLocation[]> {
+    return Array.from(this.companyLocations.values())
+      .filter(location => location.companyId === companyId && location.isActive);
+  }
+
+  async createCompanyLocation(location: InsertCompanyLocation): Promise<CompanyLocation> {
+    const id = randomUUID();
+    const newLocation: CompanyLocation = {
+      ...location,
+      id,
+      isActive: location.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.companyLocations.set(id, newLocation);
+    return newLocation;
+  }
+
+  async updateCompanyLocation(id: string, updates: Partial<CompanyLocation>): Promise<CompanyLocation> {
+    const existing = this.companyLocations.get(id);
+    if (!existing) throw new Error("Company location not found");
+    
+    const updated = { ...existing, ...updates, updatedAt: new Date() };
+    this.companyLocations.set(id, updated);
+    return updated;
+  }
+
+  async deleteCompanyLocation(id: string): Promise<void> {
+    const existing = this.companyLocations.get(id);
+    if (!existing) throw new Error("Company location not found");
+    
+    const updated = { ...existing, isActive: false, updatedAt: new Date() };
+    this.companyLocations.set(id, updated);
+  }
 }
 
 // DatabaseStorage implementation
@@ -840,6 +938,66 @@ export class DatabaseStorage implements IStorage {
       .where(eq(activityLogs.organizationId, organizationId))
       .orderBy(desc(activityLogs.createdAt))
       .limit(limit);
+  }
+  
+  // Companies
+  async getCompany(id: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company;
+  }
+
+  async getCompaniesByOrganization(organizationId: string): Promise<Company[]> {
+    return await db.select().from(companies)
+      .where(and(eq(companies.organizationId, organizationId), eq(companies.isActive, true)));
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const [created] = await db.insert(companies).values(company).returning();
+    return created;
+  }
+
+  async updateCompany(id: string, updates: Partial<Company>): Promise<Company> {
+    const [updated] = await db.update(companies)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCompany(id: string): Promise<void> {
+    await db.update(companies)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(companies.id, id));
+  }
+
+  // Company Locations
+  async getCompanyLocation(id: string): Promise<CompanyLocation | undefined> {
+    const [location] = await db.select().from(companyLocations).where(eq(companyLocations.id, id));
+    return location;
+  }
+
+  async getCompanyLocationsByCompany(companyId: string): Promise<CompanyLocation[]> {
+    return await db.select().from(companyLocations)
+      .where(and(eq(companyLocations.companyId, companyId), eq(companyLocations.isActive, true)));
+  }
+
+  async createCompanyLocation(location: InsertCompanyLocation): Promise<CompanyLocation> {
+    const [created] = await db.insert(companyLocations).values(location).returning();
+    return created;
+  }
+
+  async updateCompanyLocation(id: string, updates: Partial<CompanyLocation>): Promise<CompanyLocation> {
+    const [updated] = await db.update(companyLocations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(companyLocations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCompanyLocation(id: string): Promise<void> {
+    await db.update(companyLocations)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(companyLocations.id, id));
   }
 }
 
