@@ -306,7 +306,7 @@ export class MemStorage {
   const user = {
       ...userData,
       id,
-      isActive: userData.isActive ?? true,
+      isActive: (userData as any).isActive ?? true,
       lastLoginAt: null,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -382,7 +382,7 @@ export class MemStorage {
   const inspection = {
       ...inspectionData,
       id,
-      description: inspectionData.description ?? null,
+      description: (inspectionData as any).description ?? null,
       qrCode: null,
       aiAnalysis: null,
       createdAt: new Date(),
@@ -427,7 +427,7 @@ export class MemStorage {
   const actionPlan = {
       ...planData,
       id,
-      description: planData.description ?? null,
+      description: (planData as any).description ?? null,
       completedAt: null,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -459,8 +459,8 @@ export class MemStorage {
   const file = {
       ...fileData,
       id,
-      inspectionId: fileData.inspectionId ?? null,
-      actionPlanId: fileData.actionPlanId ?? null,
+      inspectionId: (fileData as any).inspectionId ?? null,
+      actionPlanId: (fileData as any).actionPlanId ?? null,
       createdAt: new Date()
   } as any;
     this.files.set(id, file);
@@ -473,9 +473,9 @@ export class MemStorage {
   const log = {
       ...logData,
       id,
-      details: logData.details ?? {},
-      entityType: logData.entityType ?? null,
-      entityId: logData.entityId ?? null,
+      details: (logData as any).details ?? {},
+      entityType: (logData as any).entityType ?? null,
+      entityId: (logData as any).entityId ?? null,
       createdAt: new Date()
   } as any;
     this.activityLogs.push(log);
@@ -506,8 +506,8 @@ export class MemStorage {
   const template = {
       ...templateData,
       id,
-      isActive: templateData.isActive ?? true,
-      isDefault: templateData.isDefault ?? false,
+      isActive: (templateData as any).isActive ?? true,
+      isDefault: (templateData as any).isDefault ?? false,
       createdAt: new Date(),
       updatedAt: new Date()
   } as any;
@@ -555,7 +555,7 @@ export class MemStorage {
   const newCompany = {
       ...company,
       id,
-      isActive: company.isActive ?? true,
+      isActive: (company as any).isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
   } as any;
@@ -595,7 +595,7 @@ export class MemStorage {
   const newLocation = {
       ...location,
       id,
-      isActive: location.isActive ?? true,
+      isActive: (location as any).isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
   } as any;
@@ -718,13 +718,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOrganization(org: InsertOrganization): Promise<Organization> {
-    const [created] = await db.insert(organizations).values(org).returning();
+  const [created] = await db.insert(organizations).values(org as any).returning();
     return created;
   }
 
   async updateOrganization(id: string, updates: Partial<InsertOrganization>): Promise<Organization> {
     const [updated] = await db.update(organizations)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(organizations.id, id))
       .returning();
     return updated;
@@ -746,13 +746,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [created] = await db.insert(users).values(user).returning();
+  const [created] = await db.insert(users).values(user as any).returning();
     return created;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
     const [updated] = await db.update(users)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(users.id, id))
       .returning();
     return updated;
@@ -774,13 +774,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvitation(invitation: InsertInvitation): Promise<Invitation> {
-    const [created] = await db.insert(invitations).values(invitation).returning();
+  const [created] = await db.insert(invitations).values(invitation as any).returning();
     return created;
   }
 
   async updateInvitation(id: string, updates: Partial<Invitation>): Promise<Invitation> {
     const [updated] = await db.update(invitations)
-      .set(updates)
+      .set(updates as any)
       .where(eq(invitations.id, id))
       .returning();
     return updated;
@@ -805,15 +805,15 @@ export class DatabaseStorage implements IStorage {
       // Convert string dates to Date objects if needed
       const processedInspection = {
         ...inspection,
-        scheduledAt: typeof inspection.scheduledAt === 'string' ? new Date(inspection.scheduledAt) : inspection.scheduledAt,
-        startedAt: inspection.startedAt && typeof inspection.startedAt === 'string' ? new Date(inspection.startedAt) : inspection.startedAt,
-        completedAt: inspection.completedAt && typeof inspection.completedAt === 'string' ? new Date(inspection.completedAt) : inspection.completedAt,
-        inspectorId: inspection.inspectorId || 'admin-id' // Ensure inspectorId is never null
-      };
+        scheduledAt: typeof (inspection as any).scheduledAt === 'string' ? new Date((inspection as any).scheduledAt) : (inspection as any).scheduledAt,
+        startedAt: (inspection as any).startedAt && typeof (inspection as any).startedAt === 'string' ? new Date((inspection as any).startedAt) : (inspection as any).startedAt,
+        completedAt: (inspection as any).completedAt && typeof (inspection as any).completedAt === 'string' ? new Date((inspection as any).completedAt) : (inspection as any).completedAt,
+        inspectorId: (inspection as any).inspectorId || 'admin-id' // Ensure inspectorId is never null
+      } as any;
       
       console.log('Creating inspection with data:', processedInspection);
       
-      const [created] = await db.insert(inspections).values(processedInspection).returning();
+  const [created] = await db.insert(inspections).values(processedInspection as any).returning();
       return created;
     } catch (error) {
       console.error('Error creating inspection:', error);
@@ -823,7 +823,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateInspection(id: string, updates: Partial<Inspection>): Promise<Inspection> {
     const [updated] = await db.update(inspections)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(inspections.id, id))
       .returning();
     return updated;
@@ -831,7 +831,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInspection(id: string): Promise<void> {
     await db.update(inspections)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ isActive: false, updatedAt: new Date() } as any)
       .where(eq(inspections.id, id));
   }
 
@@ -850,13 +850,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createActionPlan(actionPlan: InsertActionPlan): Promise<ActionPlan> {
-    const [created] = await db.insert(actionPlans).values(actionPlan).returning();
+  const [created] = await db.insert(actionPlans).values(actionPlan as any).returning();
     return created;
   }
 
   async updateActionPlan(id: string, updates: Partial<ActionPlan>): Promise<ActionPlan> {
     const [updated] = await db.update(actionPlans)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(actionPlans.id, id))
       .returning();
     return updated;
@@ -873,7 +873,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(file: InsertFile): Promise<File> {
-    const [created] = await db.insert(files).values(file).returning();
+  const [created] = await db.insert(files).values(file as any).returning();
     return created;
   }
 
@@ -898,13 +898,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createChecklistTemplate(template: InsertChecklistTemplate): Promise<ChecklistTemplate> {
-    const [created] = await db.insert(checklistTemplates).values(template).returning();
+  const [created] = await db.insert(checklistTemplates).values(template as any).returning();
     return created;
   }
 
   async updateChecklistTemplate(id: string, updates: Partial<ChecklistTemplate>): Promise<ChecklistTemplate> {
     const [updated] = await db.update(checklistTemplates)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(checklistTemplates.id, id))
       .returning();
     return updated;
@@ -912,7 +912,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChecklistTemplate(id: string): Promise<void> {
     await db.update(checklistTemplates)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ isActive: false, updatedAt: new Date() } as any)
       .where(eq(checklistTemplates.id, id));
   }
 
@@ -927,13 +927,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createChecklistFolder(folder: InsertChecklistFolder): Promise<ChecklistFolder> {
-    const [created] = await db.insert(checklistFolders).values(folder).returning();
+  const [created] = await db.insert(checklistFolders).values(folder as any).returning();
     return created;
   }
 
   async updateChecklistFolder(id: string, updates: Partial<ChecklistFolder>): Promise<ChecklistFolder> {
     const [updated] = await db.update(checklistFolders)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(checklistFolders.id, id))
       .returning();
     return updated;
@@ -945,7 +945,7 @@ export class DatabaseStorage implements IStorage {
 
   // Activity Logs
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
-    const [created] = await db.insert(activityLogs).values(log).returning();
+  const [created] = await db.insert(activityLogs).values(log as any).returning();
     return created;
   }
 
@@ -968,13 +968,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompany(company: InsertCompany): Promise<Company> {
-    const [created] = await db.insert(companies).values(company).returning();
+  const [created] = await db.insert(companies).values(company as any).returning();
     return created;
   }
 
   async updateCompany(id: string, updates: Partial<Company>): Promise<Company> {
     const [updated] = await db.update(companies)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(companies.id, id))
       .returning();
     return updated;
@@ -982,7 +982,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCompany(id: string): Promise<void> {
     await db.update(companies)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ isActive: false, updatedAt: new Date() } as any)
       .where(eq(companies.id, id));
   }
 
@@ -998,13 +998,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompanyLocation(location: InsertCompanyLocation): Promise<CompanyLocation> {
-    const [created] = await db.insert(companyLocations).values(location).returning();
+  const [created] = await db.insert(companyLocations).values(location as any).returning();
     return created;
   }
 
   async updateCompanyLocation(id: string, updates: Partial<CompanyLocation>): Promise<CompanyLocation> {
     const [updated] = await db.update(companyLocations)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(companyLocations.id, id))
       .returning();
     return updated;
@@ -1012,7 +1012,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCompanyLocation(id: string): Promise<void> {
     await db.update(companyLocations)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ isActive: false, updatedAt: new Date() } as any)
       .where(eq(companyLocations.id, id));
   }
 }
