@@ -43,6 +43,9 @@ export function hasPermission(user: User, permission: string, resourceId?: strin
     case "delete_inspection":
       return role === "system_admin" || role === "org_admin";
 
+    case "manage_inspections":
+      return role !== "client";
+
     case "manage_action_plans":
       return role !== "client";
 
