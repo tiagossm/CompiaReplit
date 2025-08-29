@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -19,7 +20,10 @@ import {
   FileText,
   Share2,
   Download,
-  Edit
+  Edit,
+  Plus,
+  HelpCircle,
+  Info
 } from 'lucide-react';
 import type { Inspection } from "@shared/schema";
 
@@ -145,9 +149,28 @@ export default function InspectionDetail() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto" data-testid="inspection-detail-page">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <TooltipProvider>
+      <div className="p-6 max-w-6xl mx-auto" data-testid="inspection-detail-page">
+        {/* Seção de Ajuda */}
+        <Card className="mb-6 bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-blue-900 mb-2">Como Usar Esta Tela</h3>
+                <div className="text-sm text-blue-800 space-y-1">
+                  <p>• <strong>Template de Checklist:</strong> Escolha um template existente ou crie um novo durante a inspeção</p>
+                  <p>• <strong>Status da Inspeção:</strong> Acompanhe o progresso desde rascunho até aprovação</p>
+                  <p>• <strong>Ações Rápidas:</strong> Use os botões laterais para editar, adicionar observações ou compartilhar</p>
+                  <p>• <strong>Checklist:</strong> Será carregado automaticamente quando a inspeção for iniciada</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6"></div>
         <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
@@ -170,6 +193,22 @@ export default function InspectionDetail() {
         </div>
 
         <div className="flex space-x-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                data-testid="create-new-template"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Criar Novo Template
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Crie um novo template de checklist baseado nesta inspeção</p>
+            </TooltipContent>
+          </Tooltip>
+
           {inspection.status === 'draft' && (
             <Button
               onClick={handleStartInspection}
@@ -194,15 +233,29 @@ export default function InspectionDetail() {
             </Button>
           )}
 
-          <Button variant="outline" data-testid="share-inspection">
-            <Share2 className="w-4 h-4 mr-2" />
-            Compartilhar
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" data-testid="share-inspection">
+                <Share2 className="w-4 h-4 mr-2" />
+                Compartilhar
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Compartilhe esta inspeção com outros usuários</p>
+            </TooltipContent>
+          </Tooltip>
 
-          <Button variant="outline" data-testid="download-report">
-            <Download className="w-4 h-4 mr-2" />
-            Relatório
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" data-testid="download-report">
+                <Download className="w-4 h-4 mr-2" />
+                Relatório
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Baixe o relatório completo da inspeção em PDF</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -210,11 +263,19 @@ export default function InspectionDetail() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Information */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <FileText className="w-5 h-5 mr-2 text-compia-blue" />
                 Informações da Inspeção
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 ml-2 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Informações básicas sobre a inspeção: descrição, local, datas e responsáveis</p>
+                  </TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -272,18 +333,36 @@ export default function InspectionDetail() {
           </Card>
 
           {/* Checklist Section */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader>
-              <CardTitle>Checklist de Inspeção</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  Checklist de Inspeção
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-4 h-4 ml-2 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Template de checklist opcional - pode ser escolhido ou criado durante a inspeção</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                  Opcional
+                </Badge>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {inspection.checklist ? (
                 <div className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Checklist baseado no template selecionado.
-                  </p>
+                  <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    <p className="text-green-800">
+                      Checklist baseado no template selecionado está ativo.
+                    </p>
+                  </div>
                   {/* TODO: Implementar componente de checklist */}
-                  <div className="p-4 bg-muted rounded-lg">
+                  <div className="p-4 bg-muted rounded-lg border-2 border-dashed border-muted-foreground/20">
                     <p className="text-center text-muted-foreground">
                       Componente de checklist será implementado aqui
                     </p>
@@ -291,11 +370,23 @@ export default function InspectionDetail() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Checklist não carregado</h3>
-                  <p className="text-muted-foreground">
-                    O checklist será carregado quando a inspeção for iniciada.
+                  <div className="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                    <FileText className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Template de Checklist (Opcional)</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Escolha um template existente ou crie um novo durante a inspeção para padronizar o processo.
                   </p>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button variant="outline" size="sm">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Escolher Template
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-green-600 border-green-200 hover:bg-green-50">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Criar Novo
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -305,28 +396,52 @@ export default function InspectionDetail() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader>
-              <CardTitle className="text-lg">Ações Rápidas</CardTitle>
+              <CardTitle className="text-lg flex items-center">
+                Ações Rápidas
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 ml-2 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Ações frequentes para gerenciar esta inspeção</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                data-testid="edit-inspection"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Editar Inspeção
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
+                    data-testid="edit-inspection"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar Inspeção
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Edite as informações básicas desta inspeção</p>
+                </TooltipContent>
+              </Tooltip>
               
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                data-testid="add-note"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Adicionar Observação
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors"
+                    data-testid="add-note"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Adicionar Observação
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Adicione observações importantes à inspeção</p>
+                </TooltipContent>
+              </Tooltip>
             </CardContent>
           </Card>
 
@@ -372,6 +487,6 @@ export default function InspectionDetail() {
           )}
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
