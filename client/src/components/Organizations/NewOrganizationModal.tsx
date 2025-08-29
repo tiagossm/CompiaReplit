@@ -104,7 +104,9 @@ export default function NewOrganizationModal({ open, onOpenChange }: NewOrganiza
     setCnpjStatus('idle');
 
     try {
-      const response = await fetch(`/api/cnpj/${cnpj}`);
+      // Remove all non-numeric characters from CNPJ
+      const cleanCnpj = cnpj.replace(/\D/g, '');
+      const response = await fetch(`/api/cnpj/${cleanCnpj}`);
       
       if (response.ok) {
         const contentType = response.headers.get('content-type');

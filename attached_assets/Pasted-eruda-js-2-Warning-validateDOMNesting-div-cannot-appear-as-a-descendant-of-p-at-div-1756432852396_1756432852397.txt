@@ -1,0 +1,79 @@
+eruda.js:2 Warning: validateDOMNesting(...): <div> cannot appear as a descendant of <p>.
+    at div
+    at Badge (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/badge.tsx:35:18)
+    at p
+    at div
+    at div
+    at div
+    at _c9 (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at div
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PALV7G7K.js?v=5f327845:42:13
+    at Presence (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-I6ILO7VJ.js?v=5f327845:24:11)
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…orkspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=5f327845:175:13
+    at _c5 (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/tabs.tsx:72:12)
+    at div
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PALV7G7K.js?v=5f327845:42:13
+    at Provider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=5f327845:38:15)
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/workspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=5f327845:53:7
+    at div
+    at Organizations (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/pages/Organizations.tsx:30:20)
+    at div
+    at main
+    at div
+    at AppLayout (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/App.tsx?v=kE2j5Me5CKsIepxrJeHWp:45:22)
+    at component
+    at Route (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=5f327845:265:16)
+    at Switch (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=5f327845:321:17)
+    at Router
+    at Provider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=5f327845:38:15)
+    at TooltipProvider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=5f327845:63:5)
+    at QueryClientProvider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=5f327845:2805:3)
+    at App
+Mt.forEach.n.<computed>	@	Console.js:61
+eruda.js:2 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+eruda.js:2 Erro ao buscar CNPJ: SyntaxError: Failed to execute 'json' on 'Response': Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+    at handleCnpjLookup (NewOrganizationModal.tsx:109:37)
+eruda.js:2 [vite] server connection lost. Polling for restart...
+eruda.js:2 [vite] server connection lost. Polling for restart...
+Console.js:61 Warning: validateDOMNesting(...): <div> cannot appear as a descendant of <p>.
+    at div
+    at Badge (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/badge.tsx:35:18)
+    at p
+    at div
+    at div
+    at div
+    at _c9 (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at div
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PALV7G7K.js?v=5f327845:42:13
+    at Presence (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-I6ILO7VJ.js?v=5f327845:24:11)
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…orkspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=5f327845:175:13
+    at _c5 (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/components/ui/tabs.tsx:72:12)
+    at div
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PALV7G7K.js?v=5f327845:42:13
+    at Provider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=5f327845:38:15)
+    at https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/workspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=5f327845:53:7
+    at div
+    at Organizations (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/pages/Organizations.tsx:30:20)
+    at div
+    at main
+    at div
+    at AppLayout (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev/src/App.tsx?v=EddhBJ9QOq8AomED2gTn0:45:22)
+    at component
+    at Route (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=5f327845:265:16)
+    at Switch (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=5f327845:321:17)
+    at Router
+    at Provider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…unner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=5f327845:38:15)
+    at TooltipProvider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=5f327845:63:5)
+    at QueryClientProvider (https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=5f327845:2805:3)
+    at App
+
+Console.js:61 Erro ao buscar CNPJ: Error: Resposta não é JSON válido
+    at handleCnpjLookup (NewOrganizationModal.tsx:112:17)
+﻿
+

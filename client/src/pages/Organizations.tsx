@@ -158,11 +158,11 @@ export default function Organizations() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
-                      <p className="text-sm font-medium" data-testid="org-status">
+                      <div className="text-sm font-medium" data-testid="org-status">
                         <Badge className={currentOrg.isActive ? "bg-compia-green/10 text-compia-green" : "bg-destructive/10 text-destructive"}>
                           {currentOrg.isActive ? "Ativo" : "Inativo"}
                         </Badge>
-                      </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
