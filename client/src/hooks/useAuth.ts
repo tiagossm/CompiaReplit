@@ -40,6 +40,8 @@ export function hasPermission(user: User, permission: string): boolean {
       return user.role === "system_admin" || user.role === "org_admin";
     case "create_inspection":
       return user.role !== "client";
+    case "manage_inspections":
+      return user.role !== "client";
     case "manage_action_plans":
       return user.role !== "client";
     case "view_reports":
