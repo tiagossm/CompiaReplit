@@ -50,7 +50,7 @@ export default function Sidebar() {
     },
     {
       title: "Empresas",
-      href: "/companies",
+      href: "/companies", 
       icon: Building2,
       permission: "manage_inspections"
     },
