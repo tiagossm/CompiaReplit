@@ -145,12 +145,28 @@ export default function CompanyForm() {
     try {
       // Usando endpoint do backend para evitar problemas de CORS
       const response = await fetch(`/api/cnpj/${cnpj}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
 
-      if (data.status === 'ERROR') {
+      // Verificar se houve erro na consulta
+      if (data.status === 'ERROR' || data.message) {
         toast({
           title: "CNPJ não encontrado",
           description: data.message || "CNPJ não foi encontrado na Receita Federal",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verificar se os dados essenciais estão presentes
+      if (!data.nome) {
+        toast({
+          title: "Dados incompletos",
+          description: "CNPJ encontrado, mas dados incompletos na Receita Federal",
           variant: "destructive",
         });
         return;
@@ -160,17 +176,26 @@ export default function CompanyForm() {
       form.setValue('name', data.nome || '');
       form.setValue('email', data.email || '');
       form.setValue('phone', data.telefone || '');
-      form.setValue('address', `${data.logradouro || ''}, ${data.numero || ''} ${data.complemento || ''}`.trim());
+      
+      // Montar endereço completo
+      const addressParts = [
+        data.logradouro,
+        data.numero,
+        data.complemento
+      ].filter(part => part && part.trim() !== '').join(', ');
+      
+      form.setValue('address', addressParts);
       form.setValue('city', data.municipio || '');
       form.setValue('state', data.uf || '');
       form.setValue('zipCode', data.cep?.replace(/\D/g, '') || '');
 
       toast({
         title: "Dados encontrados!",
-        description: "Os dados da empresa foram preenchidos automaticamente",
+        description: `Empresa "${data.nome}" carregada com sucesso`,
       });
 
     } catch (error) {
+      console.error('Erro ao buscar CNPJ:', error);
       toast({
         title: "Erro ao buscar dados",
         description: "Não foi possível consultar os dados do CNPJ. Tente novamente.",
