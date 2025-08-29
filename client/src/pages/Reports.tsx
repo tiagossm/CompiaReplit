@@ -25,7 +25,7 @@ export default function Reports() {
     queryKey: ['/api/dashboard/stats', { organizationId: selectedOrganization !== "all" ? selectedOrganization : undefined }],
   });
 
-  const { data: organizations } = useQuery({
+  const { data: organizations } = useQuery<any[]>({
     queryKey: ['/api/organizations'],
   });
 

@@ -42,7 +42,7 @@ export default function Users() {
     queryKey: ['/api/invitations', { organizationId: selectedOrganization !== "all" ? selectedOrganization : undefined }],
   });
 
-  const { data: organizations } = useQuery({
+  const { data: organizations } = useQuery<any[]>({
     queryKey: ['/api/organizations'],
     enabled: user.role === 'system_admin'
   });
@@ -52,8 +52,7 @@ export default function Users() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, updates }: { userId: string; updates: Partial<User> }) => {
-      const response = await apiRequest(`/api/users/${userId}`, 'PATCH', updates);
-      return response.json();
+  return apiRequest(`/api/users/${userId}`, 'PATCH', updates);
     },
     onSuccess: (updatedUser) => {
       toast({
@@ -73,8 +72,7 @@ export default function Users() {
 
   const deleteInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      const response = await apiRequest(`/api/invitations/${invitationId}`, 'DELETE');
-      return response.json();
+  return apiRequest(`/api/invitations/${invitationId}`, 'DELETE');
     },
     onSuccess: () => {
       toast({
@@ -147,7 +145,7 @@ export default function Users() {
 
   const resendInvitation = async (invitationId: string) => {
     try {
-      await apiRequest('POST', `/api/invitations/${invitationId}/resend`);
+  await apiRequest(`/api/invitations/${invitationId}/resend`, 'POST');
       toast({
         title: "Convite reenviado!",
         description: "O convite foi enviado novamente por email",

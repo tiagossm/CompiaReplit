@@ -22,7 +22,7 @@ type AcceptInviteFormData = z.infer<typeof acceptInviteSchema>;
 
 export default function AcceptInvite() {
   const [location] = useLocation();
-  const [, setLocation] = useRouter();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [invitationDetails, setInvitationDetails] = useState<any>(null);
@@ -73,11 +73,11 @@ export default function AcceptInvite() {
 
   const acceptInviteMutation = useMutation({
     mutationFn: async (data: AcceptInviteFormData) => {
-      const response = await apiRequest('POST', '/api/invitations/accept', {
+      const res = await apiRequest('/api/invitations/accept', 'POST', {
         token,
         userInfo: data
       });
-      return response.json();
+      return res;
     },
     onSuccess: (result) => {
       toast({

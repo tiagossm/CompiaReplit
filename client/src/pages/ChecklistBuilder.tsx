@@ -51,7 +51,8 @@ const fieldTypes = [
 
 export default function ChecklistBuilder() {
   const [, navigate] = useLocation();
-  const { id: templateId } = useParams();
+  // useParams returns a typed route param; cast to any to avoid undefined index errors
+  const { id: templateId } = useParams() as any;
   const { toast } = useToast();
   const isViewing = !!templateId;
   

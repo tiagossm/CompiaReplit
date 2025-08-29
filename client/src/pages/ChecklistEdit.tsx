@@ -26,7 +26,7 @@ interface ChecklistField {
 }
 
 export default function ChecklistEdit() {
-  const { id } = useParams();
+  const { id } = useParams() as any;
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);

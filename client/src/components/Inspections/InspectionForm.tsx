@@ -61,8 +61,8 @@ export default function InspectionForm({ inspectionId, initialData, onSuccess, m
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(initialData?.checklist || defaultChecklistItems);
-  const [findings, setFindings] = useState<Finding[]>(initialData?.findings || []);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>((initialData?.checklist as ChecklistItem[]) || defaultChecklistItems);
+  const [findings, setFindings] = useState<Finding[]>((initialData?.findings as Finding[]) || []);
 
   const form = useForm<InspectionFormData>({
     resolver: zodResolver(inspectionFormSchema),
@@ -80,8 +80,7 @@ export default function InspectionForm({ inspectionId, initialData, onSuccess, m
     mutationFn: async (data: InspectionFormData) => {
       const endpoint = mode === 'edit' ? `/api/inspections/${inspectionId}` : '/api/inspections';
       const method = mode === 'edit' ? 'PATCH' : 'POST';
-      const response = await apiRequest(endpoint, method, data);
-      return response.json();
+      return await apiRequest(endpoint, method, data);
     },
     onSuccess: (inspection) => {
       toast({

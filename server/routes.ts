@@ -1264,7 +1264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: req.body.description,
         category: req.body.category,
         items: req.body.items,
-        is_public: req.body.is_public
+        isPublic: (req.body as any).is_public ?? req.body.isPublic
       });
       
       res.json(updated);

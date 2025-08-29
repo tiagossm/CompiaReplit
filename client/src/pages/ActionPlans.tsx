@@ -55,7 +55,7 @@ export default function ActionPlans() {
     queryKey: ['/api/action-plans'],
   });
 
-  const { data: inspections } = useQuery({
+  const { data: inspections } = useQuery<any[]>({
     queryKey: ['/api/inspections'],
   });
 
@@ -82,8 +82,7 @@ export default function ActionPlans() {
     mutationFn: async (data: ActionPlanFormData) => {
       const endpoint = selectedActionPlan ? `/api/action-plans/${selectedActionPlan.id}` : '/api/action-plans';
       const method = selectedActionPlan ? 'PATCH' : 'POST';
-      const response = await apiRequest(endpoint, method, data);
-      return response.json();
+      return await apiRequest(endpoint, method, data);
     },
     onSuccess: (actionPlan) => {
       toast({

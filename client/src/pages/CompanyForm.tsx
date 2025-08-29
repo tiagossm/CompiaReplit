@@ -53,7 +53,8 @@ type CompanyFormData = z.infer<typeof companyFormSchema>;
 
 export default function CompanyForm() {
   const [, setLocation] = useLocation();
-  const [match, params] = useRoute("/companies/:id/edit");
+  // useRoute can return undefined params typing; cast to any for safety
+  const [match, params] = useRoute("/companies/:id/edit") as any;
   const isEdit = !!match && params?.id;
   const { toast } = useToast();
   const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);

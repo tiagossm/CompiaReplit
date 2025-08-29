@@ -65,13 +65,13 @@ export async function calculateAnalytics(organizationId: string, period: { start
   
   // Calculate compliance rate
   const totalChecks = periodInspections.reduce((sum, i) => {
-    const checklist = i.checklist as any[] || [];
-    return sum + checklist.length;
+    const checklist = (i.checklist as any[]) || [];
+    return sum + (Array.isArray(checklist) ? checklist.length : 0);
   }, 0);
   
   const compliantChecks = periodInspections.reduce((sum, i) => {
-    const checklist = i.checklist as any[] || [];
-    return sum + checklist.filter((item: any) => item.isCompliant === true).length;
+    const checklist = (i.checklist as any[]) || [];
+    return sum + (Array.isArray(checklist) ? checklist.filter((item: any) => item.isCompliant === true).length : 0);
   }, 0);
   
   const complianceRate = totalChecks > 0 ? (compliantChecks / totalChecks) * 100 : 100;
@@ -244,7 +244,7 @@ export function generateTrendAnalysis(data: any[], period: string): any {
   }, {} as Record<string, any[]>);
   
   // Calculate metrics for each period
-  Object.entries(grouped).forEach(([key, items]) => {
+  Object.entries(grouped).forEach(([key, items]: [string, any[]]) => {
     const periodData = {
       period: key,
       count: items.length,

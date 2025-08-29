@@ -36,7 +36,7 @@ interface ChecklistTemplate {
 }
 
 export default function ChecklistDetail() {
-  const { id } = useParams();
+  const { id } = useParams() as any;
   const [, navigate] = useLocation();
   const [template, setTemplate] = useState<ChecklistTemplate | null>(null);
   const [loading, setLoading] = useState(true);

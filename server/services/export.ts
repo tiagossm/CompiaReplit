@@ -364,7 +364,8 @@ export async function exportToExcel(data: any[], type: "inspections" | "action-p
         plan.description || '',
         plan.priority,
         plan.status,
-        plan.assigneeId,
+    // older data used assignedTo
+    (plan as any).assigneeId || (plan as any).assignedTo || '',
         plan.dueDate ? new Date(plan.dueDate).toLocaleDateString('pt-BR') : '',
         new Date(plan.createdAt || '').toLocaleDateString('pt-BR'),
         plan.completedAt ? new Date(plan.completedAt).toLocaleDateString('pt-BR') : ''
@@ -466,7 +467,7 @@ ID do Plano: ${plan.id}
 Título: ${plan.title}
 Prioridade: ${plan.priority}
 Status: ${plan.status}
-Responsável: ${plan.assigneeId}
+Responsável: ${(plan as any).assigneeId || (plan as any).assignedTo || 'N/A'}
 
 WHAT (O QUÊ)
 ------------
@@ -499,7 +500,7 @@ ${plan.howMuch}
 
 TAREFAS
 -------
-${(plan.tasks as any[] || []).map((task: any) => 
+${(((plan as any).tasks) as any[] || []).map((task: any) => 
   `[ ${task.isCompleted ? 'X' : ' '} ] ${task.title}\n    ${task.description || ''}`
 ).join('\n\n')}
 
