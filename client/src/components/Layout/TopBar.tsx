@@ -46,8 +46,8 @@ export default function TopBar() {
         return {
           breadcrumbs: ["Administração", "Organizações"],
           title: "Gestão de Organizações",
-          showNewButton: hasPermission(user, "create_organization"),
-          newButtonText: "Nova Organização",
+          showNewButton: false,
+          newButtonText: "",
           newButtonAction: () => {}
         };
       case "/users":

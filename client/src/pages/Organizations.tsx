@@ -304,7 +304,7 @@ export default function Organizations() {
                           <div className="text-xs text-muted-foreground mt-1" data-testid={`activity-details-${log.id}`}>
                             {typeof log.details === 'object' && log.details !== null
                               ? JSON.stringify(log.details) 
-                              : String(log.details || '')
+                              : (log.details as string) || ''
                             }
                           </div>
                         )}
