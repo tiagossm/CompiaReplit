@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { Organization } from "@/lib/types";
 import { useAuth, hasPermission } from "@/hooks/useAuth";
 import { SUBSCRIPTION_PLANS } from "@/lib/constants";
+import NewOrganizationModal from "./NewOrganizationModal";
 
 interface OrganizationNode extends Organization {
   children?: OrganizationNode[];
@@ -16,6 +17,7 @@ interface OrganizationNode extends Organization {
 export default function OrganizationHierarchy() {
   const { user } = useAuth();
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [showNewOrgModal, setShowNewOrgModal] = useState(false);
   
   const { data: organizations, isLoading } = useQuery<Organization[]>({
     queryKey: ['/api/organizations'],
@@ -216,6 +218,7 @@ export default function OrganizationHierarchy() {
           {hasPermission(user, 'create_organization') && (
             <Button 
               className="bg-compia-blue hover:bg-compia-blue/90 text-primary-foreground"
+              onClick={() => setShowNewOrgModal(true)}
               data-testid="new-organization-button"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -236,6 +239,11 @@ export default function OrganizationHierarchy() {
           </div>
         )}
       </CardContent>
+      
+      <NewOrganizationModal 
+        open={showNewOrgModal}
+        onOpenChange={setShowNewOrgModal}
+      />
     </Card>
   );
 }
