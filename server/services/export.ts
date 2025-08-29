@@ -467,7 +467,7 @@ ID do Plano: ${plan.id}
 Título: ${plan.title}
 Prioridade: ${plan.priority}
 Status: ${plan.status}
-Responsável: ${(plan as any).assigneeId || (plan as any).assignedTo || 'N/A'}
+Responsável: ${plan.assigneeId}
 
 WHAT (O QUÊ)
 ------------
@@ -500,7 +500,7 @@ ${plan.howMuch}
 
 TAREFAS
 -------
-${(((plan as any).tasks) as any[] || []).map((task: any) => 
+${(plan.tasks as any[] || []).map((task: any) => 
   `[ ${task.isCompleted ? 'X' : ' '} ] ${task.title}\n    ${task.description || ''}`
 ).join('\n\n')}
 

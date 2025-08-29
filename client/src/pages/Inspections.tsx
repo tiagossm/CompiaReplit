@@ -35,7 +35,6 @@ export default function Inspections() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
@@ -63,8 +62,7 @@ export default function Inspections() {
   };
 
   const handleDeleteInspection = async (id: string) => {
-  setDeletingId(id);
-  try {
+    try {
       const response = await fetch(`/api/inspections/${id}`, {
         method: 'DELETE'
       });
@@ -72,15 +70,12 @@ export default function Inspections() {
       if (response.ok) {
         setInspections(prev => prev.filter(inspection => inspection.id !== id));
         setShowDeleteModal(null);
-        setDeletingId(null);
         alert('Inspeção excluída com sucesso!');
       } else {
-        setDeletingId(null);
         throw new Error('Erro ao excluir inspeção');
       }
     } catch (error) {
       console.error('Erro ao excluir inspeção:', error);
-      setDeletingId(null);
       alert('Erro ao excluir inspeção. Tente novamente.');
     }
   };
@@ -380,8 +375,8 @@ export default function Inspections() {
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={() => handleDeleteInspection(showDeleteModal!)}
-                disabled={deletingId === showDeleteModal}
+                onClick={() => handleDeleteInspection(showDeleteModal)}
+                disabled={deleteMutation.isPending}
               >
                 Excluir
               </Button>

@@ -316,11 +316,11 @@ export class OpenAIAssistantsService {
       });
 
       // Wait for completion
-  let runStatus = await this.client.beta.threads.runs.retrieve(thread.id, run.id as any);
+      let runStatus = await this.client.beta.threads.runs.retrieve(thread.id, run.id);
       let attempts = 0;
       while (runStatus.status !== 'completed' && runStatus.status !== 'failed' && attempts < 30) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-  runStatus = await this.client.beta.threads.runs.retrieve(thread.id, run.id as any);
+        runStatus = await this.client.beta.threads.runs.retrieve(thread.id, run.id);
         attempts++;
       }
 

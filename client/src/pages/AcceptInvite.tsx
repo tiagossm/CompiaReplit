@@ -11,7 +11,7 @@ import { Mail, CheckCircle, AlertTriangle, Shield, Users, ArrowRight } from "luc
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation, useRouter } from "wouter";
+import { useLocation } from "wouter";
 
 const acceptInviteSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -21,8 +21,7 @@ const acceptInviteSchema = z.object({
 type AcceptInviteFormData = z.infer<typeof acceptInviteSchema>;
 
 export default function AcceptInvite() {
-  const [location] = useLocation();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [invitationDetails, setInvitationDetails] = useState<any>(null);

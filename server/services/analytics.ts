@@ -244,7 +244,7 @@ export function generateTrendAnalysis(data: any[], period: string): any {
   }, {} as Record<string, any[]>);
   
   // Calculate metrics for each period
-  Object.entries(grouped).forEach(([key, items]: [string, any[]]) => {
+  Object.entries(grouped).forEach(([key, items]) => {
     const periodData = {
       period: key,
       count: items.length,
