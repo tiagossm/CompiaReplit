@@ -143,8 +143,8 @@ export default function CompanyForm() {
     setIsSearchingCNPJ(true);
 
     try {
-      // Usando API pública da ReceitaWS
-      const response = await fetch(`https://www.receitaws.com.br/v1/cnpj/${cnpj}`);
+      // Usando endpoint do backend para evitar problemas de CORS
+      const response = await fetch(`/api/cnpj/${cnpj}`);
       const data = await response.json();
 
       if (data.status === 'ERROR') {

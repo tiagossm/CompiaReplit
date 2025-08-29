@@ -127,6 +127,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CNPJ lookup endpoint
+  app.get("/api/cnpj/:cnpj", async (req, res) => {
+    try {
+      const cnpj = req.params.cnpj.replace(/\D/g, ''); // Remove formatting
+      
+      if (cnpj.length !== 14) {
+        return res.status(400).json({ message: "CNPJ deve ter 14 dígitos" });
+      }
+
+      const response = await fetch(`https://www.receitaws.com.br/v1/cnpj/${cnpj}`);
+      const data = await response.json();
+      
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching CNPJ data:", error);
+      res.status(500).json({ message: "Erro ao consultar CNPJ" });
+    }
+  });
+
   // Companies routes
   app.get('/api/companies', requireAuth, async (req, res) => {
     try {

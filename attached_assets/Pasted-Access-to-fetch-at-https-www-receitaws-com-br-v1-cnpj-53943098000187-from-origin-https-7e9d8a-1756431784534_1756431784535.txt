@@ -1,0 +1,31 @@
+Access to fetch at 'https://www.receitaws.com.br/v1/cnpj/53943098000187' from origin 'https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+
+new:1 Access to fetch at 'https://www.receitaws.com.br/v1/cnpj/53943098000187' from origin 'https://7e9d8a9d-0ae3-4649-a8e0-2ae0b6ba0621-00-ylswwnkdfmbb.riker.replit.dev' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+www.receitaws.com.br…pj/53943098000187:1 
+ Failed to load resource: net::ERR_FAILED
+www.receitaws.com.br…pj/53943098000187:1 
+ Failed to load resource: net::ERR_FAILED
+Network.js:219 
+ 
+ Uncaught (in promise) TypeError: Failed to fetch
+    at Object.apply (injected.js:253:39)
+    at searchCompanyByCNPJ (CompanyForm.tsx:147:30)
+    at HTMLUnknownElement.callCallback2 (chunk-WERSD76P.js?v=5f327845:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-WERSD76P.js?v=5f327845:3699:24)
+    at invokeGuardedCallback (chunk-WERSD76P.js?v=5f327845:3733:39)
+    at invokeGuardedCallbackAndCatchFirstError (chunk-WERSD76P.js?v=5f327845:3736:33)
+    at executeDispatch (chunk-WERSD76P.js?v=5f327845:7014:11)
+    at processDispatchQueueItemsInOrder (chunk-WERSD76P.js?v=5f327845:7034:15)
+    at processDispatchQueue (chunk-WERSD76P.js?v=5f327845:7043:13)
+﻿
+
+A more reliable and productive Chrome DevTools
+In Chrome 139, DevTools prioritized product excellence and developer experience. We tackled numerous known issues, including some years-old ones, and also made improvements to newer features. Behind the scenes, we enhanced our test coverage and migrated tests to more robust foundations.
+
+We hope you will experience these numerous subtle fixes across various panels, making your daily debugging and development workflows smoother, more reliable, and more productive.
+
+Upload images in AI assistance for styling
+To provide additional visual context to your prompts, you can now upload arbitrary images in the AI assistance panel when you start your conversation from the Elements panel with a DOM element selected as context.
+
+Check out the highlights from I/O
+Check out the features we announced at Google I/O 2025, including features with Gemini integration: modify and save CSS changes to your workspace, ask about performance insights, annotate performance findings, and more.
