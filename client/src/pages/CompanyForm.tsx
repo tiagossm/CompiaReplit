@@ -208,11 +208,25 @@ export default function CompanyForm() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {
-      if (isEdit && params?.id) {
-        return await apiRequest(`/api/companies/${params.id}`, "PUT", data);
-      } else {
-        return await apiRequest("/api/companies", "POST", data);
+      const url = isEdit && params?.id ? `/api/companies/${params.id}` : "/api/companies";
+      const method = isEdit && params?.id ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": "admin@iasst.com", // Header necessário para autenticação
+        },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`${response.status}: ${errorText}`);
       }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
