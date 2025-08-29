@@ -45,3 +45,36 @@ Preferred communication style: Simple, everyday language.
 - **Charts**: Recharts for data visualization and reporting
 - **Document Generation**: QR code generation, PDF exports, and compliance reporting
 - **Date Handling**: date-fns for date manipulation and formatting
+
+# Diagnóstico de rotas — instruções
+
+1) Inicie o servidor e cole o output do terminal:
+   - Comando: `npm run dev` (ou `npm start`)
+   - Cole o log completo até aparecer que o servidor está a ouvir na porta.
+
+2) Reproduza a rota defeituosa e cole:
+   - Método (GET/POST/PUT/DELETE)
+   - URL completa (ex.: http://localhost:5000/api/exemplo)
+   - Headers relevantes (Content-Type, Authorization)
+   - Body (JSON) se houver
+   - Resposta do servidor (status code + body) e stack trace se existir
+
+3) Execute chamadas verbosas (exemplos curl):
+   - GET: `curl -v http://localhost:5000/api/exemplo`
+   - POST: `curl -v -H "Content-Type: application/json" -d '{"foo":"bar"}' http://localhost:5000/api/exemplo`
+
+4) Entregue estes ficheiros/trechos:
+   - server/app entry (ex.: app.ts, index.ts, server.js)
+   - Rotas (ex.: routes/*.ts ou controllers)
+   - Middleware (bodyParser, cors, auth)
+   - package.json (scripts) e .env / variáveis importantes (PORT, DATABASE_URL)
+
+5) O que eu vou verificar:
+   - Ordem do middleware (parsers antes de routes)
+   - Uso correto de req.params / req.query / req.body
+   - Handlers async sem try/catch (adicionar next(err) / tratamento)
+   - Paths duplicados / trailing slash
+   - Retornos consistentes: res.status(...).json(...)
+   - Logs adicionais para reproduzir falha
+
+Cole aqui os logs e os ficheiros mencionados e eu refaço a análise e envio patches agrupados por ficheiro.
