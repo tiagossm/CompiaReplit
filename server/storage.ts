@@ -47,6 +47,7 @@ export interface IStorage {
   getInspectionsByInspector(inspectorId: string): Promise<Inspection[]>;
   createInspection(inspection: InsertInspection): Promise<Inspection>;
   updateInspection(id: string, updates: Partial<Inspection>): Promise<Inspection>;
+  deleteInspection(id: string): Promise<void>;
   
   // Action Plans
   getActionPlan(id: string): Promise<ActionPlan | undefined>;
@@ -397,6 +398,14 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...updates, updatedAt: new Date() };
     this.inspections.set(id, updated);
     return updated;
+  }
+
+  async deleteInspection(id: string): Promise<void> {
+    const existing = this.inspections.get(id);
+    if (!existing) throw new Error("Inspection not found");
+    
+    const updated = { ...existing, isActive: false, updatedAt: new Date() };
+    this.inspections.set(id, updated);
   }
 
   // Action Plans
@@ -817,6 +826,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(inspections.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteInspection(id: string): Promise<void> {
+    await db.update(inspections)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(inspections.id, id));
   }
 
   // Action Plans

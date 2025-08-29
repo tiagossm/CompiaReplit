@@ -421,6 +421,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { user } = req;
       const { organizationId } = req.query;
       
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       let users;
       if (organizationId) {
         if (!canAccessOrganization(user, organizationId as string)) {
@@ -446,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       
-      if (!hasPermission(user, 'invite_user')) {
+      if (!user || !hasPermission(user, 'invite_user')) {
         return res.status(403).json({ message: "Sem permissão para convidar usuários" });
       }
       
@@ -634,6 +638,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { user } = req;
       const { organizationId } = req.query;
       
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       let inspections;
       if (organizationId && canAccessOrganization(user, organizationId as string)) {
         inspections = await storage.getInspectionsByOrganization(organizationId as string);
@@ -663,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Inspeção não encontrada" });
       }
       
-      if (!hasPermission(user, 'edit_inspection') && inspection.inspectorId !== user.id) {
+      if (!user || (!hasPermission(user, 'edit_inspection') && inspection.inspectorId !== user.id)) {
         return res.status(403).json({ message: "Sem permissão para editar esta inspeção" });
       }
       
