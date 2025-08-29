@@ -209,15 +209,9 @@ export default function CompanyForm() {
   const saveMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {
       if (isEdit && params?.id) {
-        return await apiRequest(`/api/companies/${params.id}`, {
-          method: "PUT",
-          body: JSON.stringify(data),
-        });
+        return await apiRequest(`/api/companies/${params.id}`, "PUT", data);
       } else {
-        return await apiRequest("/api/companies", {
-          method: "POST",
-          body: JSON.stringify(data),
-        });
+        return await apiRequest("/api/companies", "POST", data);
       }
     },
     onSuccess: () => {
