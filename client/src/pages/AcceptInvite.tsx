@@ -47,19 +47,20 @@ export default function AcceptInvite() {
       setIsValidToken(false);
     }
   }, [location]);
-
   const validateToken = async (tokenValue: string) => {
     try {
-      const response = await fetch(`/api/invitations/validate?token=${tokenValue}`);
-      
-      if (response.ok) {
-        const invitation = await response.json();
+      const invitation = await apiRequest(`/api/invitations/validate?token=${encodeURIComponent(tokenValue)}`, 'GET');
+
+      if (invitation) {
         setInvitationDetails(invitation);
         setIsValidToken(true);
-        
-        // Pre-fill email if available
+
+        // Pre-fill email/name if available
         if (invitation.email) {
           form.setValue('email', invitation.email);
+        }
+        if (invitation.name) {
+          form.setValue('name', invitation.name);
         }
       } else {
         setIsValidToken(false);
@@ -67,6 +68,11 @@ export default function AcceptInvite() {
     } catch (error) {
       console.error('Error validating token:', error);
       setIsValidToken(false);
+      toast({
+        title: 'Token inválido',
+        description: 'O link de convite é inválido ou expirou.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -98,8 +104,22 @@ export default function AcceptInvite() {
     }
   });
 
-  const handleSubmit = (data: AcceptInviteFormData) => {
-    acceptInviteMutation.mutate(data);
+  const handleSubmit = async (data: AcceptInviteFormData) => {
+    if (!token) {
+      toast({
+        title: 'Token ausente',
+        description: 'Nenhum token de convite foi encontrado na URL.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await acceptInviteMutation.mutateAsync(data);
+    } catch (err) {
+      // onError of the mutation will show the toast; keep this here for any extra handling
+      console.error('Accept invite failed', err);
+    }
   };
 
   const getRoleLabel = (role: string) => {
@@ -302,7 +322,7 @@ export default function AcceptInvite() {
                 <div className="pt-4">
                   <Button
                     type="submit"
-                    disabled={acceptInviteMutation.isPending}
+                    disabled={acceptInviteMutation.isPending || isValidToken === false || !token}
                     className="w-full bg-compia-blue hover:bg-compia-blue/90 text-primary-foreground"
                     data-testid="accept-invitation-button"
                   >
