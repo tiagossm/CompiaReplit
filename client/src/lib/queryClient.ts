@@ -48,7 +48,82 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const pathSegments: string[] = [];
+    const searchParams = new URLSearchParams();
+
+    const toSearchParamValue = (value: unknown) =>
+      value instanceof Date ? value.toISOString() : String(value);
+
+    for (const part of queryKey) {
+      if (part === undefined || part === null) {
+        continue;
+      }
+
+      if (part instanceof URLSearchParams) {
+        part.forEach((value, key) => {
+          searchParams.append(key, value);
+        });
+        continue;
+      }
+
+      if (part instanceof Date) {
+        pathSegments.push(part.toISOString());
+        continue;
+      }
+
+      if (Array.isArray(part)) {
+        for (const item of part) {
+          if (item === undefined || item === null) {
+            continue;
+          }
+          pathSegments.push(String(item));
+        }
+        continue;
+      }
+
+      if (typeof part === "object") {
+        for (const [key, value] of Object.entries(part as Record<string, unknown>)) {
+          if (value === undefined || value === null) {
+            continue;
+          }
+
+          if (Array.isArray(value)) {
+            for (const item of value) {
+              if (item === undefined || item === null) {
+                continue;
+              }
+              searchParams.append(key, toSearchParamValue(item));
+            }
+          } else {
+            searchParams.append(key, toSearchParamValue(value));
+          }
+        }
+        continue;
+      }
+
+      if (typeof part === "string" || typeof part === "number" || typeof part === "boolean") {
+        pathSegments.push(String(part));
+        continue;
+      }
+
+      pathSegments.push(String(part));
+    }
+
+    let url = pathSegments[0] ?? "";
+    const remainingSegments = pathSegments.slice(1);
+
+    if (remainingSegments.length > 0) {
+      const separator = url.endsWith("/") || url === "" ? "" : "/";
+      const encodedSegments = remainingSegments.map((segment) => encodeURIComponent(segment));
+      url += `${separator}${encodedSegments.join("/")}`;
+    }
+
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += url.includes("?") ? `&${queryString}` : `?${queryString}`;
+    }
+
+    const res = await fetch(url as string, {
       credentials: "include",
     });
 
