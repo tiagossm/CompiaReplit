@@ -48,10 +48,9 @@ export default function InviteUserDialog({ organizationId, trigger }: InviteUser
 
   const inviteUserMutation = useMutation({
     mutationFn: async (data: InviteUserData) => {
-      return await apiRequest('/api/invitations', 'POST', data);
+      return apiRequest('/api/invitations', 'POST', data);
     },
     onSuccess: (invitation) => {
-      // Generate invite link
       const baseUrl = window.location.origin;
       const link = `${baseUrl}/accept-invite?token=${invitation.token}`;
       setInviteLink(link);
