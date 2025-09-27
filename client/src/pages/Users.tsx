@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Search, Filter, Users as UsersIcon, UserPlus, Mail, Settings, 
-  MoreVertical, Eye, Edit, Trash2, Shield, Clock, CheckCircle
+  Search, Users as UsersIcon, UserPlus, Mail, 
+  MoreVertical, Eye, Edit, Trash2, Shield, CheckCircle
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";

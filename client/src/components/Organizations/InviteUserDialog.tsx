@@ -51,7 +51,6 @@ export default function InviteUserDialog({ organizationId, trigger }: InviteUser
       return apiRequest('/api/invitations', 'POST', data);
     },
     onSuccess: (invitation) => {
-      // Generate invite link
       const baseUrl = window.location.origin;
       const link = `${baseUrl}/accept-invite?token=${invitation.token}`;
       setInviteLink(link);
