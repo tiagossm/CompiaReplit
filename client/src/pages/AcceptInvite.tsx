@@ -12,6 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import compiaLogo from "@/assets/compia-logo.png";
 
 const acceptInviteSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -213,7 +214,11 @@ export default function AcceptInvite() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4" data-testid="accept-invite-success">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-compia-green mx-auto mb-6" />
+            <img
+              src={compiaLogo}
+              alt="Logotipo da COMPIA"
+              className="w-20 h-20 mx-auto mb-6"
+            />
             <h1 className="text-2xl font-bold text-foreground mb-4">Bem-vindo ao COMPIA!</h1>
             <p className="text-muted-foreground mb-6">
               Seu convite foi aceito com sucesso. Você será redirecionado para o dashboard em instantes.
@@ -234,9 +239,11 @@ export default function AcceptInvite() {
       <div className="w-full max-w-lg space-y-6">
         {/* Header */}
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-compia-blue to-compia-purple rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
+          <img
+            src={compiaLogo}
+            alt="Logotipo da COMPIA"
+            className="w-20 h-20 mx-auto mb-4"
+          />
           <h1 className="text-3xl font-heading font-bold text-foreground mb-2">COMPIA</h1>
           <p className="text-muted-foreground">Inteligência em Segurança do Trabalho</p>
         </div>
@@ -347,8 +354,12 @@ export default function AcceptInvite() {
         </Card>
 
         {/* Footer */}
-        <div className="text-center text-sm text-muted-foreground">
-          <p>© 2024 COMPIA - Inteligência em Segurança do Trabalho</p>
+        <div className="text-center text-sm text-muted-foreground space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <img src={compiaLogo} alt="Logotipo da COMPIA" className="h-6 w-auto" />
+            <p className="font-medium text-foreground">COMPIA</p>
+          </div>
+          <p>© 2024 Inteligência em Segurança do Trabalho</p>
         </div>
       </div>
     </div>

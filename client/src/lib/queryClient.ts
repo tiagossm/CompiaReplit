@@ -1,13 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-function appendSearchParam(
-  params: URLSearchParams,
-  key: string,
-  value: unknown,
-) {
-  if (value === undefined || value === null) {
-    return;
-  }
+function appendSearchParam(params: URLSearchParams, key: string, value: unknown) {
+  if (value === undefined || value === null) return;
 
   if (Array.isArray(value)) {
     value.forEach((item) => appendSearchParam(params, key, item));
@@ -28,13 +22,8 @@ function appendSearchParam(
 }
 
 function normalisePath(base: string, segment: string): string {
-  if (!base) {
-    return segment;
-  }
-
-  if (!segment) {
-    return base;
-  }
+  if (!base) return segment;
+  if (!segment) return base;
 
   if (base.endsWith("/")) {
     return segment.startsWith("/") ? `${base}${segment.slice(1)}` : `${base}${segment}`;
@@ -43,7 +32,7 @@ function normalisePath(base: string, segment: string): string {
   return segment.startsWith("/") ? `${base}${segment}` : `${base}/${segment}`;
 }
 
-function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
+export function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
   if (!queryKey.length) {
     throw new Error("Query key must not be empty");
   }
@@ -52,9 +41,7 @@ function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
   const pathSegments: string[] = [];
 
   queryKey.forEach((segment, index) => {
-    if (segment === undefined || segment === null) {
-      return;
-    }
+    if (segment === undefined || segment === null) return;
 
     if (typeof segment === "string") {
       const queryStart = segment.indexOf("?");
@@ -70,9 +57,7 @@ function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
 
       if (queryString) {
         const params = new URLSearchParams(queryString);
-        params.forEach((value, key) => {
-          searchParams.append(key, value);
-        });
+        params.forEach((value, key) => searchParams.append(key, value));
       }
       return;
     }
@@ -83,9 +68,7 @@ function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
     }
 
     if (segment instanceof URLSearchParams) {
-      segment.forEach((value, key) => {
-        searchParams.append(key, value);
-      });
+      segment.forEach((value, key) => searchParams.append(key, value));
       return;
     }
 
@@ -94,22 +77,20 @@ function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           pathSegments.push(String(value));
         } else if (value instanceof URLSearchParams) {
-          value.forEach((v, key) => {
-            searchParams.append(key, v);
-          });
+          value.forEach((v, key) => searchParams.append(key, v));
         } else if (value && typeof value === "object") {
-          Object.entries(value as Record<string, unknown>).forEach(([key, val]) => {
-            appendSearchParam(searchParams, key, val);
-          });
+          Object.entries(value as Record<string, unknown>).forEach(([key, val]) =>
+            appendSearchParam(searchParams, key, val),
+          );
         }
       });
       return;
     }
 
     if (typeof segment === "object") {
-      Object.entries(segment as Record<string, unknown>).forEach(([key, value]) => {
-        appendSearchParam(searchParams, key, value);
-      });
+      Object.entries(segment as Record<string, unknown>).forEach(([key, value]) =>
+        appendSearchParam(searchParams, key, value),
+      );
       return;
     }
 
@@ -117,19 +98,12 @@ function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
   });
 
   const path = pathSegments.reduce((acc, segment, idx) => {
-    if (idx === 0) {
-      return segment;
-    }
+    if (idx === 0) return segment;
     return normalisePath(acc, segment);
   }, "");
 
   const queryString = searchParams.toString();
-
-  if (!queryString) {
-    return path;
-  }
-
-  return path.includes("?") ? `${path}&${queryString}` : `${path}?${queryString}`;
+  return queryString ? (path.includes("?") ? `${path}&${queryString}` : `${path}?${queryString}`) : path;
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -142,11 +116,11 @@ async function throwIfResNotOk(res: Response) {
 // apiRequest supports two calling styles used across the codebase:
 // 1) apiRequest(url, method, data)
 // 2) apiRequest(url, fetchOptions)
-export async function apiRequest(
+export async function apiRequest<T = any>(
   url: string,
   methodOrOptions?: string | RequestInit,
   data?: unknown,
-): Promise<any> {
+): Promise<T> {
   let options: RequestInit = { credentials: "include" };
 
   if (typeof methodOrOptions === "string") {
@@ -157,7 +131,6 @@ export async function apiRequest(
     }
   } else if (methodOrOptions) {
     options = { ...options, ...(methodOrOptions as RequestInit) };
-    // if caller passed body as plain object in third arg, prefer it
     if (data !== undefined) {
       options.headers = { ...(options.headers || {}), "Content-Type": "application/json" };
       options.body = JSON.stringify(data);
@@ -167,23 +140,21 @@ export async function apiRequest(
   const res = await fetch(url, options);
   await throwIfResNotOk(res);
 
-  // attempt to parse JSON, but return text if parsing fails
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) {
     return res.json();
   }
-  return res.text();
+  return res.text() as T;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-// Keep the query function flexible and return any so callers can type their queries
+
+// Query function genérica
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const url = buildUrlFromQueryKey(queryKey);
-    const res = await fetch(url, {
-      credentials: "include",
-    });
+    const res = await fetch(url, { credentials: "include" });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
