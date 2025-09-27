@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { 
   insertOrganizationSchema, insertUserSchema, insertInvitationSchema,
   insertInspectionSchema, insertActionPlanSchema, acceptInviteSchema,
-  createInspectionSchema, updateInspectionSchema, createChecklistTemplateSchema
+  createInspectionSchema, updateInspectionSchema
 } from "@shared/schema";
 import { authenticateUser, hasPermission, canAccessOrganization, filterByOrganizationAccess } from "./services/auth";
 import { analyzeInspectionFindings, generateActionPlanRecommendations, generateComplianceInsights } from "./services/openai";
@@ -967,31 +967,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Checklist Templates - Extended functionality
+  const normalizeTemplateItems = (body: any): any[] => {
+    const source: any[] =
+      Array.isArray(body?.fields) && body.fields.length > 0
+        ? body.fields
+        : Array.isArray(body?.items)
+          ? body.items
+          : [];
+
+    if (source.length === 0) {
+      return [];
+    }
+
+    const timestamp = Date.now();
+
+    return source.map((rawItem: any, index: number) => {
+      const idCandidate = rawItem.id ?? rawItem.item_id ?? rawItem.field_id;
+      const id = idCandidate ? String(idCandidate) : `item-${timestamp}-${index}`;
+      const rawType = rawItem.type ?? rawItem.field_type ?? rawItem.question_type;
+      let type = typeof rawType === "string" ? rawType.trim().toLowerCase() : "text";
+      if (!type) {
+        type = "text";
+      }
+      if (type === "boolean") {
+        type = "checkbox";
+      }
+
+      const label =
+        rawItem.item ??
+        rawItem.label ??
+        rawItem.field_name ??
+        rawItem.name ??
+        rawItem.title ??
+        `Item ${index + 1}`;
+
+      const rawOptions = rawItem.options ?? rawItem.choices ?? rawItem.values;
+      let options: string[] | undefined;
+      if (Array.isArray(rawOptions)) {
+        options = rawOptions.map((option: any) => String(option).trim()).filter(Boolean);
+      } else if (typeof rawOptions === "string") {
+        options = rawOptions
+          .split(/[\n,|;]/)
+          .map((option: string) => option.trim())
+          .filter(Boolean);
+      }
+
+      const requiredValue = rawItem.isRequired ?? rawItem.required ?? rawItem.is_required ?? false;
+      const isRequired =
+        typeof requiredValue === "string"
+          ? ["true", "1", "yes", "sim"].includes(requiredValue.trim().toLowerCase())
+          : Boolean(requiredValue);
+
+      const weightValue =
+        typeof rawItem.weight === "number"
+          ? rawItem.weight
+          : typeof rawItem.weight === "string" && rawItem.weight.trim()
+            ? Number(rawItem.weight)
+            : undefined;
+
+      return {
+        id,
+        type,
+        item: label,
+        label,
+        description: rawItem.description ?? rawItem.helpText ?? rawItem.standardDescription ?? undefined,
+        standard: rawItem.standard ?? undefined,
+        category: rawItem.category ?? rawItem.field_category ?? undefined,
+        isRequired,
+        required: isRequired,
+        options,
+        min: rawItem.min ?? rawItem.minValue ?? undefined,
+        max: rawItem.max ?? rawItem.maxValue ?? undefined,
+        placeholder: rawItem.placeholder ?? undefined,
+        order: typeof rawItem.order === "number" ? rawItem.order : index,
+        referenceImage: rawItem.referenceImage ?? undefined,
+        helpText: rawItem.helpText ?? undefined,
+        weight: weightValue ?? 1
+      };
+    });
+  };
+
+  const normalizeTags = (tags: any): string[] => {
+    if (!tags) {
+      return [];
+    }
+
+    if (Array.isArray(tags)) {
+      return tags.map(tag => String(tag).trim()).filter(Boolean);
+    }
+
+    if (typeof tags === "string") {
+      return tags
+        .split(",")
+        .map(tag => tag.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  };
+
+  const resolveBoolean = (value: any, fallback = false): boolean => {
+    if (value === undefined || value === null) {
+      return fallback;
+    }
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) {
+        return fallback;
+      }
+      return ["true", "1", "yes", "sim", "on"].includes(normalized);
+    }
+
+    if (typeof value === "number") {
+      return value !== 0;
+    }
+
+    return fallback;
+  };
+
   app.post('/api/checklist-templates', requireAuth, async (req, res) => {
     try {
       const { user } = req;
-      // Convert fields to items format
-      const items = req.body.fields ? req.body.fields.map((field: any) => ({
-        type: field.field_type === 'boolean' ? 'checkbox' : field.field_type,
-        label: field.field_name,
-        required: field.is_required || false,
-        options: field.options ? field.options.split(',').map((o: string) => o.trim()) : undefined
-      })) : [];
-      
-      const templateData = {
-        name: req.body.name,
-        description: req.body.description,
-        category: req.body.parent_folder_id || req.body.category,
-        organizationId: user.organizationId,
-        items: items,
-        isActive: true,
-        isDefault: false,
+
+      if (!user || !hasPermission(user, 'create_inspection')) {
+        return res.status(403).json({ message: "Sem permissão para criar templates" });
+      }
+
+      const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+      if (!name) {
+        return res.status(400).json({ message: "Nome do template é obrigatório" });
+      }
+
+      let organizationId = user.organizationId || 'master-org-id';
+      if (req.body.organizationId && req.body.organizationId !== organizationId) {
+        if (!canAccessOrganization(user, req.body.organizationId)) {
+          return res.status(403).json({ message: "Sem permissão para criar templates nesta organização" });
+        }
+        organizationId = req.body.organizationId;
+      }
+
+      const items = normalizeTemplateItems(req.body);
+      if (items.length === 0) {
+        return res.status(400).json({ message: "Template deve conter pelo menos um item" });
+      }
+
+      const folderId = req.body.folderId ?? req.body.parentFolderId ?? req.body.parent_folder_id ?? null;
+      const category = typeof req.body.category === 'string' && req.body.category.trim()
+        ? req.body.category
+        : 'geral';
+
+      const templateData: any = {
+        name,
+        description: req.body.description ?? null,
+        category,
+        organizationId,
+        items,
+        tags: normalizeTags(req.body.tags),
+        isActive: resolveBoolean(req.body.isActive, true),
+        isDefault: resolveBoolean(req.body.isDefault, false),
+        isPublic: resolveBoolean(req.body.isPublic ?? req.body.is_public, false),
         createdBy: user.id,
-        parentFolderId: req.body.parent_folder_id || null
+        fieldCount: items.length
       };
-      
+
+      templateData.folderId = folderId ?? null;
+      if (req.body.parentCategoryId !== undefined) {
+        templateData.parentCategoryId = req.body.parentCategoryId;
+      }
+      if (req.body.categoryPath !== undefined) {
+        templateData.categoryPath = req.body.categoryPath;
+      }
+      if (req.body.displayOrder !== undefined) {
+        templateData.displayOrder = req.body.displayOrder;
+      }
+
       const template = await storage.createChecklistTemplate(templateData);
-      res.status(201).json(template);
+
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId,
+        action: 'create_checklist_template',
+        entityType: 'checklist_template',
+        entityId: template.id,
+        details: { name: template.name, category: template.category }
+      });
+
+      res.status(201).json({
+        ...template,
+        parent_folder_id: template.folderId ?? null,
+        is_public: (template as any).is_public ?? template.isPublic ?? templateData.isPublic,
+        fields_count: template.fieldCount ?? items.length
+      });
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
@@ -1064,17 +1235,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       const { id } = req.params;
-      
+
       const template = await storage.getChecklistTemplate(id);
       if (!template) {
         return res.status(404).json({ message: "Template não encontrado" });
       }
-      
-      if (!canAccessOrganization(user, template.organizationId)) {
+
+      if (!user || !canAccessOrganization(user, template.organizationId) || !hasPermission(user, 'manage_organization')) {
         return res.status(403).json({ message: "Sem permissão para excluir este template" });
       }
-      
+
       await storage.deleteChecklistTemplate(id);
+
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: template.organizationId,
+        action: 'delete_checklist_template',
+        entityType: 'checklist_template',
+        entityId: template.id,
+        details: { name: template.name }
+      });
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
@@ -1112,32 +1293,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user?.organizationId) {
         return res.status(403).json({ message: 'Usuário sem organização' });
       }
-      
+
       const { csv_content, name, description, parent_folder_id } = req.body;
-      
-      // Parse CSV content and create checklist
-      const lines = csv_content.split('\n').filter((line: string) => line.trim());
-      const items = lines.map((line: string, index: number) => ({
-        id: `item-${Date.now()}-${index}`,
-        text: line.trim(),
-        type: 'checkbox' as const,
-        required: false
+      const lines = (csv_content || '').split('\n').filter((line: string) => line.trim());
+
+      if (lines.length === 0) {
+        return res.status(400).json({ message: 'Arquivo CSV vazio ou inválido' });
+      }
+
+      const fields = lines.map((line: string, index: number) => ({
+        label: line.trim(),
+        type: 'checkbox',
+        required: false,
+        order: index
       }));
-      
-      const template = {
+
+      const items = normalizeTemplateItems({ fields });
+
+      const templateData: any = {
         name: name || 'Checklist Importado',
         description: description || 'Importado via CSV',
-        category: parent_folder_id || 'geral',
-        items,
+        category: req.body.category || 'geral',
         organizationId: user.organizationId,
+        items,
+        tags: [],
         isActive: true,
         isDefault: false,
+        isPublic: false,
         createdBy: user.id,
-        parentFolderId: parent_folder_id
+        fieldCount: items.length,
+        folderId: parent_folder_id ?? null
       };
-      
-      const created = await storage.createChecklistTemplate(template);
-      res.status(201).json(created);
+
+      const created = await storage.createChecklistTemplate(templateData);
+
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: user.organizationId,
+        action: 'import_checklist_template',
+        entityType: 'checklist_template',
+        entityId: created.id,
+        details: { name: created.name, source: 'csv-simple' }
+      });
+
+      res.status(201).json({
+        ...created,
+        parent_folder_id: created.folderId ?? null,
+        is_public: (created as any).is_public ?? created.isPublic ?? false,
+        fields_count: created.fieldCount ?? items.length
+      });
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
@@ -1193,30 +1397,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transform templates to include folder metadata
       const transformedTemplates = templates.map(template => {
+        const base = {
+          ...template,
+          parent_folder_id: template.folderId ?? null,
+          fields_count: template.fieldCount ?? (Array.isArray((template as any).items) ? (template as any).items.length : 0),
+          created_at: template.createdAt,
+          updated_at: template.updatedAt,
+          is_public: (template as any).is_public ?? template.isPublic ?? false
+        };
+
         if (template.category === '__folder__' && template.description) {
           try {
             const metadata = JSON.parse(template.description);
             return {
-              ...template,
+              ...base,
               is_category_folder: true,
               folder_icon: metadata.folder_icon || 'folder',
               folder_color: metadata.folder_color || 'blue',
               parent_folder_id: metadata.parent_folder_id || null,
               description: metadata.user_description || '',
               fields_count: 0,
-              created_at: template.createdAt,
-              updated_at: template.updatedAt
+              is_public: false
             };
           } catch (e) {
             console.error('Error parsing folder metadata:', e);
           }
         }
+
         return {
-          ...template,
-          is_category_folder: false,
-          fields_count: template.items?.length || 0,
-          created_at: template.createdAt,
-          updated_at: template.updatedAt
+          ...base,
+          is_category_folder: false
         };
       });
       
@@ -1239,7 +1449,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Sem permissão para acessar este template" });
       }
       
-      res.json(template);
+      res.json({
+        ...template,
+        parent_folder_id: template.folderId ?? null,
+        is_public: (template as any).is_public ?? template.isPublic ?? false,
+        fields_count: template.fieldCount ?? (Array.isArray((template as any).items) ? (template as any).items.length : 0)
+      });
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
@@ -1249,124 +1464,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       const { id } = req.params;
-      
+
       const template = await storage.getChecklistTemplate(id);
       if (!template) {
         return res.status(404).json({ message: "Template não encontrado" });
       }
-      
-      if (!canAccessOrganization(user, template.organizationId)) {
+
+      if (!user || !canAccessOrganization(user, template.organizationId)) {
         return res.status(403).json({ message: "Sem permissão para editar este template" });
       }
-      
-      const updated = await storage.updateChecklistTemplate(id, {
-        name: req.body.name,
-        description: req.body.description,
-        category: req.body.category,
-        items: req.body.items,
-        isPublic: (req.body as any).is_public ?? req.body.isPublic
-      });
-      
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
 
-  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      
-      if (!hasPermission(user, 'create_inspection')) {
-        return res.status(403).json({ message: "Sem permissão para criar templates" });
+      const hasFieldUpdates = Array.isArray(req.body.fields) && req.body.fields.length > 0;
+      const hasItemUpdates = Array.isArray(req.body.items) && req.body.items.length > 0;
+
+      const updates: any = {};
+
+      if (typeof req.body.name === 'string') {
+        updates.name = req.body.name.trim();
       }
-      
-      const templateData = createChecklistTemplateSchema.parse({
-        ...req.body,
-        organizationId: user.organizationId,
-        createdBy: user.id
-      });
-      
-      const template = await storage.createChecklistTemplate(templateData);
-      
-      // Log activity
+      if ('description' in req.body) {
+        updates.description = req.body.description ?? null;
+      }
+      if (typeof req.body.category === 'string') {
+        updates.category = req.body.category;
+      }
+      if ('folderId' in req.body || 'parentFolderId' in req.body || 'parent_folder_id' in req.body) {
+        updates.folderId = req.body.folderId ?? req.body.parentFolderId ?? req.body.parent_folder_id ?? null;
+      }
+      if ('tags' in req.body) {
+        updates.tags = normalizeTags(req.body.tags);
+      }
+      if ('isPublic' in req.body || 'is_public' in req.body) {
+        updates.isPublic = resolveBoolean(req.body.isPublic ?? req.body.is_public, template.isPublic ?? false);
+      }
+      if ('isActive' in req.body) {
+        updates.isActive = resolveBoolean(req.body.isActive, template.isActive ?? true);
+      }
+      if ('isDefault' in req.body) {
+        updates.isDefault = resolveBoolean(req.body.isDefault, template.isDefault ?? false);
+      }
+      if ('displayOrder' in req.body) {
+        updates.displayOrder = req.body.displayOrder;
+      }
+      if ('parentCategoryId' in req.body) {
+        updates.parentCategoryId = req.body.parentCategoryId;
+      }
+      if ('categoryPath' in req.body) {
+        updates.categoryPath = req.body.categoryPath;
+      }
+
+      if (hasFieldUpdates || hasItemUpdates) {
+        const items = normalizeTemplateItems(req.body);
+        if (items.length === 0) {
+          return res.status(400).json({ message: "Template deve conter pelo menos um item" });
+        }
+        updates.items = items;
+        updates.fieldCount = items.length;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.json({
+          ...template,
+          parent_folder_id: template.folderId ?? null,
+          is_public: (template as any).is_public ?? template.isPublic ?? false,
+          fields_count: template.fieldCount ?? (Array.isArray((template as any).items) ? (template as any).items.length : 0)
+        });
+      }
+
+      const updatedTemplate = await storage.updateChecklistTemplate(id, updates);
+
       await storage.createActivityLog({
         userId: user.id,
-        organizationId: user.organizationId!,
-        action: 'create_checklist_template',
-        entityType: 'checklist_template',
-        entityId: template.id,
-        details: { name: template.name, category: template.category }
-      });
-      
-      res.status(201).json(template);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
-
-  app.put('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const template = await storage.getChecklistTemplate(req.params.id);
-      
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      if (!canAccessOrganization(user, template.organizationId)) {
-        return res.status(403).json({ message: "Sem permissão para editar este template" });
-      }
-      
-      const updates = createChecklistTemplateSchema.partial().parse(req.body);
-      const updatedTemplate = await storage.updateChecklistTemplate(req.params.id, updates);
-      
-      // Log activity
-      await storage.createActivityLog({
-        userId: user.id,
-        organizationId: user.organizationId!,
+        organizationId: template.organizationId,
         action: 'update_checklist_template',
         entityType: 'checklist_template',
         entityId: template.id,
-        details: { name: template.name }
+        details: { name: updatedTemplate.name }
       });
-      
-      res.json(updatedTemplate);
+
+      res.json({
+        ...updatedTemplate,
+        parent_folder_id: updatedTemplate.folderId ?? null,
+        is_public: (updatedTemplate as any).is_public ?? updatedTemplate.isPublic ?? false,
+        fields_count: updatedTemplate.fieldCount ?? (Array.isArray((updatedTemplate as any).items) ? (updatedTemplate as any).items.length : 0)
+      });
     } catch (error) {
       res.status(400).json({ message: (error as Error).message });
     }
   });
 
-  app.delete('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const template = await storage.getChecklistTemplate(req.params.id);
-      
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      if (!canAccessOrganization(user, template.organizationId) || !hasPermission(user, 'manage_organization')) {
-        return res.status(403).json({ message: "Sem permissão para excluir este template" });
-      }
-      
-      await storage.deleteChecklistTemplate(req.params.id);
-      
-      // Log activity
-      await storage.createActivityLog({
-        userId: user.id,
-        organizationId: user.organizationId!,
-        action: 'delete_checklist_template',
-        entityType: 'checklist_template',
-        entityId: template.id,
-        details: { name: template.name }
-      });
-      
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
 
   // Reports routes
   app.get('/api/reports/inspection/:id', requireAuth, async (req, res) => {
@@ -1564,65 +1750,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/checklist-templates/import-csv', requireAuth, async (req, res) => {
     try {
       const { user } = req;
-      const { name, category, csvData, fields } = req.body;
-      
-      // Convert fields to template format
-      const items = fields.map((field: any) => ({
-        type: field.type,
-        label: field.name || field.label,
-        description: field.description,
-        required: field.required || false,
-        options: field.options,
-        order: field.order
-      }));
-      
-      const template = await storage.createChecklistTemplate({
+
+      if (!user || !hasPermission(user, 'create_inspection')) {
+        return res.status(403).json({ message: "Sem permissão para importar templates" });
+      }
+
+      const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+      if (!name) {
+        return res.status(400).json({ message: "Nome do template é obrigatório" });
+      }
+
+      const category = typeof req.body.category === 'string' && req.body.category.trim()
+        ? req.body.category
+        : 'geral';
+
+      const fieldsInput = Array.isArray(req.body.fields) ? { fields: req.body.fields } : {};
+      const items = normalizeTemplateItems(fieldsInput);
+
+      if (items.length === 0) {
+        return res.status(400).json({ message: "Nenhum campo válido encontrado para importação" });
+      }
+
+      let organizationId = user.organizationId || 'master-org-id';
+      if (req.body.organizationId && req.body.organizationId !== organizationId) {
+        if (!canAccessOrganization(user, req.body.organizationId)) {
+          return res.status(403).json({ message: "Sem permissão para criar templates nesta organização" });
+        }
+        organizationId = req.body.organizationId;
+      }
+
+      const folderId = req.body.folderId ?? req.body.parentFolderId ?? req.body.parent_folder_id ?? null;
+
+      const templateData: any = {
         name,
+        description: req.body.description ?? (req.body.csvData ? 'Importado via CSV' : null),
         category,
-        organizationId: user.organizationId!,
+        organizationId,
         items,
-        createdBy: user.id
+        tags: normalizeTags(req.body.tags),
+        isPublic: resolveBoolean(req.body.isPublic ?? req.body.is_public, false),
+        createdBy: user.id,
+        fieldCount: items.length
+      };
+
+      templateData.folderId = folderId ?? null;
+
+      const template = await storage.createChecklistTemplate(templateData);
+
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId,
+        action: 'import_checklist_template',
+        entityType: 'checklist_template',
+        entityId: template.id,
+        details: { name: template.name, source: 'csv' }
       });
-      
-      res.json(template);
+
+      res.status(201).json({
+        ...template,
+        parent_folder_id: template.folderId ?? null,
+        is_public: (template as any).is_public ?? template.isPublic ?? templateData.isPublic,
+        fields_count: template.fieldCount ?? items.length
+      });
     } catch (error) {
       console.error('CSV import error:', error);
       res.status(500).json({ message: "Erro ao importar CSV" });
-    }
-  });
-
-  // Manual checklist creation
-  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const { name, description, category, fields, tags } = req.body;
-      
-      const items = fields.map((field: any) => ({
-        type: field.type,
-        label: field.label,
-        description: field.description,
-        required: field.required || false,
-        options: field.options,
-        min: field.min,
-        max: field.max,
-        placeholder: field.placeholder,
-        order: field.order
-      }));
-      
-      const template = await storage.createChecklistTemplate({
-        name,
-        description,
-        category,
-        organizationId: user.organizationId!,
-        items,
-        tags,
-        createdBy: user.id
-      });
-      
-      res.json(template);
-    } catch (error) {
-      console.error('Template creation error:', error);
-      res.status(500).json({ message: "Erro ao criar template" });
     }
   });
 
@@ -1648,114 +1840,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get checklist templates with folder structure
-  app.get('/api/checklist-templates', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const { category } = req.query;
-      
-      let templates;
-      if (category && typeof category === 'string') {
-        templates = await storage.getChecklistTemplatesByCategory(user?.organizationId || 'master-org-id', category);
-      } else {
-        templates = await storage.getChecklistTemplatesByOrganization(user?.organizationId || 'master-org-id');
-      }
-      
-      res.json(templates);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Get single checklist template
-  app.get('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const { id } = req.params;
-      
-      const template = await storage.getChecklistTemplate(id);
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      if (!user || !canAccessOrganization(user, template.organizationId)) {
-        return res.status(403).json({ message: "Sem permissão para acessar este template" });
-      }
-      
-      res.json(template);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Create checklist template
-  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const { name, description, category, folderId, items, tags, isPublic } = req.body;
-      
-      const template = await storage.createChecklistTemplate({
-        name,
-        description,
-        category,
-        folderId: folderId || null,
-        organizationId: user?.organizationId || 'master-org-id',
-        items: items || [],
-        tags: tags || [],
-        isPublic: isPublic || false,
-        isActive: true,
-        isDefault: false,
-        createdBy: user?.id || 'admin-id'
-      });
-      
-      res.json(template);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Update checklist template
-  app.put('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const template = await storage.getChecklistTemplate(req.params.id);
-      
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      if (!user || !canAccessOrganization(user, template.organizationId)) {
-        return res.status(403).json({ message: "Sem permissão para editar este template" });
-      }
-      
-      const updated = await storage.updateChecklistTemplate(req.params.id, req.body);
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Delete checklist template
-  app.delete('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const template = await storage.getChecklistTemplate(req.params.id);
-      
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      if (!user || !canAccessOrganization(user, template.organizationId)) {
-        return res.status(403).json({ message: "Sem permissão para excluir este template" });
-      }
-      
-      await storage.deleteChecklistTemplate(req.params.id);
-      res.json({ message: "Template excluído com sucesso" });
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
   // Get checklist folders
   app.get('/api/checklist-folders', requireAuth, async (req, res) => {
     try {
@@ -1763,74 +1847,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const folders = await storage.getChecklistFoldersByOrganization(user?.organizationId || 'master-org-id');
       res.json(folders);
     } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Create inspection (COMPIA implementation)
-  app.post('/api/inspections', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      
-      // Extract data from request body without validation
-      const title = req.body.title;
-      const location = req.body.location; 
-      const description = req.body.description;
-      const checklistTemplateId = req.body.checklistTemplateId;
-      let scheduledAt = req.body.scheduledAt;
-      
-      if (!user) {
-        return res.status(401).json({ message: "Usuário não autenticado" });
-      }
-      
-      // Validate required fields manually
-      if (!title || !location || !checklistTemplateId) {
-        return res.status(400).json({ message: "Campos obrigatórios: title, location, checklistTemplateId" });
-      }
-      
-      // Get the checklist template
-      const template = await storage.getChecklistTemplate(checklistTemplateId);
-      if (!template) {
-        return res.status(404).json({ message: "Template de checklist não encontrado" });
-      }
-      
-      // Process scheduledAt to ensure it's a Date
-      if (scheduledAt && typeof scheduledAt === 'string') {
-        scheduledAt = new Date(scheduledAt);
-      } else if (!scheduledAt) {
-        scheduledAt = new Date();
-      }
-      
-      // Create inspection data manually (no schema validation)
-      const inspectionData = {
-        title: String(title),
-        location: String(location),
-        description: description ? String(description) : null,
-        checklistTemplateId: String(checklistTemplateId),
-        scheduledAt: scheduledAt,
-        status: 'draft' as const,
-        organizationId: user?.organizationId || 'master-org-id',
-        inspectorId: user?.id || 'admin-id'
-      };
-      
-      console.log('Route - User data:', { id: user?.id, organizationId: user?.organizationId });
-      console.log('Route - Inspection data before storage:', inspectionData);
-      
-      const inspection = await storage.createInspection(inspectionData);
-      
-      // Log activity
-      await storage.createActivityLog({
-        userId: user?.id || 'admin-id',
-        organizationId: user?.organizationId || 'master-org-id',
-        action: 'Inspeção criada',
-        entityType: 'inspection',
-        entityId: inspection.id,
-        details: { title, location }
-      });
-      
-      res.json(inspection);
-    } catch (error) {
-      console.error('Error creating inspection:', error);
       res.status(500).json({ message: (error as Error).message });
     }
   });
