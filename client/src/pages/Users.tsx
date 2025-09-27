@@ -147,17 +147,19 @@ export default function Users() {
 
   const resendInvitation = async (invitationId: string) => {
     try {
-      await apiRequest('POST', `/api/invitations/${invitationId}/resend`);
+      const result = await apiRequest(`/api/invitations/${invitationId}/resend`, 'POST');
       toast({
         title: "Convite reenviado!",
         description: "O convite foi enviado novamente por email",
       });
+      return result;
     } catch (error) {
       toast({
         title: "Erro ao reenviar convite",
         description: (error as Error).message,
         variant: "destructive"
       });
+      throw error;
     }
   };
 
