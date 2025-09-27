@@ -61,24 +61,21 @@ export default function Inspections() {
       });
   };
 
-  const handleDeleteInspection = async (id: string) => {
-    try {
-      const response = await fetch(`/api/inspections/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        setInspections(prev => prev.filter(inspection => inspection.id !== id));
-        setShowDeleteModal(null);
-        alert('Inspeção excluída com sucesso!');
-      } else {
-        throw new Error('Erro ao excluir inspeção');
-      }
-    } catch (error) {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/inspections/${id}`, 'DELETE');
+      return id;
+    },
+    onSuccess: (id) => {
+      setInspections((prev) => prev.filter((inspection) => inspection.id !== id));
+      setShowDeleteModal(null);
+      alert('Inspeção excluída com sucesso!');
+    },
+    onError: (error) => {
       console.error('Erro ao excluir inspeção:', error);
       alert('Erro ao excluir inspeção. Tente novamente.');
-    }
-  };
+    },
+  });
 
   const handleCloneInspection = async (id: string, title: string) => {
     try {
@@ -373,9 +370,9 @@ export default function Inspections() {
               <Button variant="outline" onClick={() => setShowDeleteModal(null)}>
                 Cancelar
               </Button>
-              <Button 
-                variant="destructive" 
-                onClick={() => handleDeleteInspection(showDeleteModal)}
+              <Button
+                variant="destructive"
+                onClick={() => deleteMutation.mutate(showDeleteModal!)}
                 disabled={deleteMutation.isPending}
               >
                 Excluir
