@@ -18,7 +18,6 @@ type UnknownRecord = Record<string, unknown>;
 const INVITATION_EXPIRATION_DAYS = 7;
 
 /* ----------------- UTILITÁRIOS ----------------- */
-
 function parseDate(input: unknown, fallback: Date | null = null): Date | null {
   if (input instanceof Date) return input;
   if (typeof input === "string" && input.trim().length > 0) {
@@ -57,9 +56,7 @@ function ensureArray<T>(input: unknown, fallback: T[]): T[] {
     try {
       const parsed = JSON.parse(input);
       if (Array.isArray(parsed)) return parsed as T[];
-    } catch {
-      // ignora erro e usa fallback
-    }
+    } catch {}
   }
   return fallback;
 }
@@ -70,9 +67,7 @@ function ensureObject<T extends UnknownRecord>(input: unknown, fallback: T): T {
     try {
       const parsed = JSON.parse(input);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as T;
-    } catch {
-      // ignora erro e usa fallback
-    }
+    } catch {}
   }
   return fallback;
 }
