@@ -1,16 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
+import {
   insertOrganizationSchema, insertUserSchema, insertInvitationSchema,
-  insertInspectionSchema, insertActionPlanSchema, acceptInviteSchema,
-  createInspectionSchema, updateInspectionSchema, createChecklistTemplateSchema
+  insertActionPlanSchema, acceptInviteSchema
 } from "@shared/schema";
 import { authenticateUser, hasPermission, canAccessOrganization, filterByOrganizationAccess } from "./services/auth";
 import { analyzeInspectionFindings, generateActionPlanRecommendations, generateComplianceInsights } from "./services/openai";
 import { generateQRCode, generateInspectionReport, generateComplianceReport, calculateComplianceMetrics, generateInviteToken, isTokenValid } from "./services/documents";
 import { OpenAIAssistantsService } from "./services/openai-assistants";
 import OpenAI from "openai";
+import { normalizeTemplatePayload, transformTemplateResponse, normalizeChecklistItems } from "./utils/checklists";
+import { prepareInspectionPayload } from "./utils/inspections";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -528,108 +529,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/inspections', requireAuth, async (req, res) => {
     try {
       const { user } = req;
-      
-      // Extract all data from request body
-      const {
-        title,
-        location, 
-        description,
-        checklistTemplateId,
-        scheduledAt,
-        organizationId,
-        priority,
-        companyName,
-        zipCode,
-        fullAddress,
-        latitude,
-        longitude,
-        technicianName,
-        technicianEmail,
-        companyResponsibleName,
-        aiAssistantId,
-        actionPlanType
-      } = req.body;
-      
+
       if (!user) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
-      
-      // Validate required fields manually
-      if (!title || !location) {
-        return res.status(400).json({ message: "Campos obrigatórios: title, location" });
-      }
-      
-      // Get the checklist template if provided and not "none"
+
       let template = null;
+      const checklistTemplateId = req.body.checklistTemplateId;
       if (checklistTemplateId && checklistTemplateId !== 'none') {
         template = await storage.getChecklistTemplate(checklistTemplateId);
         if (!template) {
           return res.status(404).json({ message: "Template de checklist não encontrado" });
         }
       }
-      
-      // Process scheduledAt to ensure it's a Date
-      let processedScheduledAt = scheduledAt;
-      if (scheduledAt && typeof scheduledAt === 'string') {
-        processedScheduledAt = new Date(scheduledAt);
-      } else if (!scheduledAt) {
-        processedScheduledAt = new Date();
-      }
-      
-      // Create inspection data with all new fields
-      const inspectionData = {
-        title: String(title),
-        location: String(location),
-        description: description ? String(description) : null,
-        checklistTemplateId: (checklistTemplateId && checklistTemplateId !== 'none') ? String(checklistTemplateId) : null,
-        scheduledAt: processedScheduledAt,
-        status: 'draft' as const,
-        organizationId: organizationId || user?.organizationId || 'master-org-id',
-        inspectorId: user?.id || 'admin-id',
-        
-        // New fields
-        priority: priority || 'medium',
-        companyName: companyName || null,
-        zipCode: zipCode || null,
-        fullAddress: fullAddress || null,
-        latitude: latitude || null,
-        longitude: longitude || null,
-        technicianName: technicianName || user?.name || null,
-        technicianEmail: technicianEmail || user?.email || null,
-        companyResponsibleName: companyResponsibleName || null,
-        aiAssistantId: aiAssistantId || 'GENERAL',
-        actionPlanType: actionPlanType || '5W2H',
-        
-        // Initialize checklist from template if available
-        checklist: template ? template.items : []
-      };
-      
-      console.log('Route - User data:', { id: user?.id, organizationId: user?.organizationId });
-      console.log('Route - Inspection data before storage:', inspectionData);
-      
-      const inspection = await storage.createInspection(inspectionData);
-      
-      // Log activity
+
+      const inspectionPayload = prepareInspectionPayload(req.body, user, template ?? undefined) as any;
+      const inspection = await storage.createInspection(inspectionPayload);
+
       await storage.createActivityLog({
-        userId: user?.id || 'admin-id',
-        organizationId: organizationId || user?.organizationId || 'master-org-id',
-        action: 'Inspeção criada',
+        userId: user.id,
+        organizationId: inspectionPayload.organizationId,
+        action: 'create_inspection',
         entityType: 'inspection',
         entityId: inspection.id,
-        details: { 
-          title, 
-          location,
-          companyName,
-          priority,
-          aiAssistantId,
+        details: {
+          title: inspectionPayload.title,
+          location: inspectionPayload.location,
+          companyName: inspectionPayload.companyName,
+          priority: inspectionPayload.priority,
+          aiAssistantId: inspectionPayload.aiAssistantId,
           hasTemplate: !!template
         }
       });
-      
+
       res.status(201).json(inspection);
     } catch (error) {
       console.error('Route error:', error);
-      res.status(500).json({ message: (error as Error).message });
+      res.status(400).json({ message: (error as Error).message });
     }
   });
 
@@ -966,124 +902,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Checklist Templates - Extended functionality
-  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      // Convert fields to items format
-      const items = req.body.fields ? req.body.fields.map((field: any) => ({
-        type: field.field_type === 'boolean' ? 'checkbox' : field.field_type,
-        label: field.field_name,
-        required: field.is_required || false,
-        options: field.options ? field.options.split(',').map((o: string) => o.trim()) : undefined
-      })) : [];
-      
-      const templateData = {
-        name: req.body.name,
-        description: req.body.description,
-        category: req.body.parent_folder_id || req.body.category,
-        organizationId: user.organizationId,
-        items: items,
-        isActive: true,
-        isDefault: false,
-        createdBy: user.id,
-        parentFolderId: req.body.parent_folder_id || null
-      };
-      
-      const template = await storage.createChecklistTemplate(templateData);
-      res.status(201).json(template);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  app.post('/api/checklist-templates/:id/duplicate', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const { id } = req.params;
-      
-      const originalTemplate = await storage.getChecklistTemplate(id);
-      if (!originalTemplate) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      const duplicatedTemplate = await storage.createChecklistTemplate({
-        ...originalTemplate,
-        id: undefined,
-        name: `${originalTemplate.name} (Cópia)`,
-        createdBy: user.id,
-        createdAt: undefined,
-        updatedAt: undefined
-      });
-      
-      res.status(201).json(duplicatedTemplate);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  app.post('/api/checklist-templates/folder', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      // Create folder as a special type of template with category='__folder__'
-      const folderData = {
-        name: req.body.name,
-        description: JSON.stringify({
-          is_category_folder: true,
-          folder_icon: req.body.icon || 'folder',
-          folder_color: req.body.color || 'blue',
-          parent_folder_id: req.body.parent_folder_id || null,
-          user_description: req.body.description || ''
-        }),
-        category: '__folder__', // Special category for folders
-        items: [], // Folders don't have items
-        organizationId: user.organizationId,
-        isActive: true,
-        isDefault: false,
-        createdBy: user.id
-      };
-      
-      const folder = await storage.createChecklistTemplate(folderData);
-      
-      // Transform response to include folder metadata
-      const folderMetadata = JSON.parse(folder.description || '{}');
-      res.status(201).json({
-        ...folder,
-        is_category_folder: true,
-        folder_icon: folderMetadata.folder_icon,
-        folder_color: folderMetadata.folder_color,
-        parent_folder_id: folderMetadata.parent_folder_id,
-        description: folderMetadata.user_description
-      });
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  app.delete('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const { id } = req.params;
-      
-      const template = await storage.getChecklistTemplate(id);
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
-      }
-      
-      if (!canAccessOrganization(user, template.organizationId)) {
-        return res.status(403).json({ message: "Sem permissão para excluir este template" });
-      }
-      
-      await storage.deleteChecklistTemplate(id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // GET route for import page (returns empty template for the UI)
-  app.get('/api/checklist-templates/import', requireAuth, async (req, res) => {
-    // Return an empty template structure for the import page
+  // Checklist Templates routes
+  app.get('/api/checklist-templates/import', requireAuth, async (_req, res) => {
     res.json({
       id: 'import',
       name: 'Importar Checklist CSV',
@@ -1093,9 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // GET route for AI generator page
-  app.get('/api/checklist-templates/ai-generator', requireAuth, async (req, res) => {
-    // Return an empty template structure for the AI generator page
+  app.get('/api/checklist-templates/ai-generator', requireAuth, async (_req, res) => {
     res.json({
       id: 'ai-generator',
       name: 'Gerar Checklist com IA',
@@ -1105,122 +923,330 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Import checklist from CSV
   app.post('/api/checklist-templates/import', requireAuth, async (req, res) => {
     try {
       const { user } = req;
+
       if (!user?.organizationId) {
         return res.status(403).json({ message: 'Usuário sem organização' });
       }
-      
+
       const { csv_content, name, description, parent_folder_id } = req.body;
-      
-      // Parse CSV content and create checklist
-      const lines = csv_content.split('\n').filter((line: string) => line.trim());
-      const items = lines.map((line: string, index: number) => ({
-        id: `item-${Date.now()}-${index}`,
-        text: line.trim(),
-        type: 'checkbox' as const,
-        required: false
+
+      if (!csv_content) {
+        return res.status(400).json({ message: 'Conteúdo CSV é obrigatório' });
+      }
+
+      const lines = csv_content
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter(Boolean);
+
+      const items = lines.map((line, index) => ({
+        label: line,
+        type: 'checkbox',
+        required: false,
+        order: index
       }));
-      
-      const template = {
-        name: name || 'Checklist Importado',
-        description: description || 'Importado via CSV',
-        category: parent_folder_id || 'geral',
-        items,
-        organizationId: user.organizationId,
-        isActive: true,
-        isDefault: false,
-        createdBy: user.id,
-        parentFolderId: parent_folder_id
-      };
-      
-      const created = await storage.createChecklistTemplate(template);
-      res.status(201).json(created);
+
+      const payload = normalizeTemplatePayload(
+        {
+          name: name || 'Checklist Importado',
+          description: description || 'Importado via CSV',
+          category: parent_folder_id || 'geral',
+          parent_folder_id,
+          items
+        },
+        user
+      );
+
+      const template = await storage.createChecklistTemplate(payload as any);
+      res.status(201).json(transformTemplateResponse(template));
     } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
+      res.status(400).json({ message: (error as Error).message });
     }
   });
-  
-  // Generate checklist with AI
+
   app.post('/api/checklist-templates/ai-generator', requireAuth, async (req, res) => {
     try {
       const { user } = req;
+
       if (!user?.organizationId) {
         return res.status(403).json({ message: 'Usuário sem organização' });
       }
-      
+
       const { prompt, category, name, parent_folder_id } = req.body;
-      
-      // Generate checklist items based on prompt
-      // For now, return a template response
-      const template = {
-        name: name || 'Checklist Gerado por IA',
-        description: `Gerado com IA: ${prompt}`,
-        category: parent_folder_id || category || 'geral',
-        items: [
-          { id: '1', text: 'Item gerado 1', type: 'checkbox' as const, required: true },
-          { id: '2', text: 'Item gerado 2', type: 'checkbox' as const, required: false },
-          { id: '3', text: 'Item gerado 3', type: 'checkbox' as const, required: false }
-        ],
-        organizationId: user.organizationId,
-        isActive: true,
-        isDefault: false,
+
+      const items = [
+        { label: 'Item gerado 1', type: 'checkbox', required: true, order: 0 },
+        { label: 'Item gerado 2', type: 'checkbox', required: false, order: 1 },
+        { label: 'Item gerado 3', type: 'checkbox', required: false, order: 2 }
+      ];
+
+      const payload = normalizeTemplatePayload(
+        {
+          name: name || 'Checklist Gerado por IA',
+          description: prompt ? `Gerado com IA: ${prompt}` : null,
+          category: parent_folder_id || category || 'geral',
+          parent_folder_id,
+          items
+        },
+        user
+      );
+
+      const template = await storage.createChecklistTemplate(payload as any);
+      res.status(201).json(transformTemplateResponse(template));
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+
+      if (!hasPermission(user, 'create_inspection')) {
+        return res.status(403).json({ message: "Sem permissão para criar templates" });
+      }
+
+      const payload = normalizeTemplatePayload(req.body, user);
+
+      if (!payload.name) {
+        return res.status(400).json({ message: 'Nome do template é obrigatório' });
+      }
+
+      const template = await storage.createChecklistTemplate(payload as any);
+
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: user.organizationId!,
+        action: 'create_checklist_template',
+        entityType: 'checklist_template',
+        entityId: template.id,
+        details: { name: template.name, category: template.category }
+      });
+
+      res.status(201).json(transformTemplateResponse(template));
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/checklist-templates/:id/duplicate', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { id } = req.params;
+
+      const originalTemplate = await storage.getChecklistTemplate(id);
+      if (!originalTemplate) {
+        return res.status(404).json({ message: "Template não encontrado" });
+      }
+
+      if (!canAccessOrganization(user, originalTemplate.organizationId)) {
+        return res.status(403).json({ message: "Sem permissão para duplicar este template" });
+      }
+
+      const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, usageCount: _usageCount, ...rest } = originalTemplate as any;
+
+      const duplicatedTemplate = await storage.createChecklistTemplate({
+        ...rest,
+        name: `${originalTemplate.name} (Cópia)`,
         createdBy: user.id,
-        parentFolderId: parent_folder_id
-      };
-      
-      const created = await storage.createChecklistTemplate(template);
-      res.status(201).json(created);
+        fieldCount: Array.isArray(rest.items) ? rest.items.length : rest.fieldCount ?? 0,
+        isDefault: false
+      });
+
+      await storage.createActivityLog({
+        userId: user.id,
+        organizationId: originalTemplate.organizationId,
+        action: 'duplicate_checklist_template',
+        entityType: 'checklist_template',
+        entityId: duplicatedTemplate.id,
+        details: { originalId: originalTemplate.id }
+      });
+
+      res.status(201).json(transformTemplateResponse(duplicatedTemplate));
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
   });
 
-  // Checklist Templates routes
+  app.post('/api/checklist-templates/folder', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+
+      if (!user?.organizationId) {
+        return res.status(403).json({ message: 'Usuário sem organização' });
+      }
+
+      const parentFolderId = req.body.parent_folder_id && req.body.parent_folder_id !== 'none'
+        ? req.body.parent_folder_id
+        : null;
+
+      const metadata = {
+        is_category_folder: true,
+        folder_icon: req.body.icon || 'folder',
+        folder_color: req.body.color || '#3B82F6',
+        parent_folder_id: parentFolderId,
+        user_description: req.body.description || ''
+      };
+
+      const folder = await storage.createChecklistTemplate({
+        name: req.body.name,
+        description: JSON.stringify(metadata),
+        category: '__folder__',
+        organizationId: user.organizationId,
+        items: [],
+        createdBy: user.id,
+        isActive: true,
+        isDefault: false,
+        isCategoryFolder: true,
+        folderIcon: metadata.folder_icon,
+        folderColor: metadata.folder_color,
+        parentCategoryId: parentFolderId,
+        fieldCount: 0
+      } as any);
+
+      res.status(201).json(transformTemplateResponse(folder));
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/api/checklist-templates/import-csv', requireAuth, async (req, res) => {
+    try {
+      const { user } = req;
+      const { name, category, csvData, fields } = req.body;
+
+      if (!fields || !Array.isArray(fields)) {
+        return res.status(400).json({ message: 'Campos do checklist são obrigatórios' });
+      }
+
+      const payload = normalizeTemplatePayload(
+        {
+          name,
+          category,
+          fields,
+          items: fields,
+          tags: req.body.tags,
+          description: req.body.description
+        },
+        user
+      );
+
+      const template = await storage.createChecklistTemplate(payload as any);
+      res.json(transformTemplateResponse(template));
+    } catch (error) {
+      console.error('CSV import error:', error);
+      res.status(500).json({ message: "Erro ao importar CSV" });
+    }
+  });
+
+  app.post('/api/checklist-templates/generate-ai', requireAuth, async (req, res) => {
+    try {
+      if (!openai) {
+        return res.status(503).json({ message: "Serviço de IA não disponível" });
+      }
+
+      const { user } = req;
+      const {
+        industry, location_type, template_name, category,
+        num_questions, specific_requirements, assistant
+      } = req.body;
+
+      let prompt = `Crie um checklist de inspeção de segurança do trabalho com ${num_questions} perguntas para:
+      - Indústria: ${industry}
+      - Tipo de Local: ${location_type}
+      - Requisitos específicos: ${specific_requirements || 'Nenhum'}
+
+      O checklist deve ser detalhado e seguir as melhores práticas de SST.
+      Retorne como JSON com formato: { items: [{ type: string, label: string, description: string, required: boolean, options?:string[] }] }`;
+
+      let aiResponse;
+      if (assistant && assistant !== 'GENERAL' && assistantsService) {
+        const result = await assistantsService.analyzeWithAssistant(assistant, prompt);
+        aiResponse = result.analysis;
+      } else {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        });
+        aiResponse = completion.choices[0].message.content;
+      }
+
+      const checklistData = JSON.parse(aiResponse || '{}');
+
+      const payload = normalizeTemplatePayload(
+        {
+          name: template_name,
+          category,
+          items: checklistData.items || checklistData,
+          tags: [industry, location_type]
+        },
+        user
+      );
+
+      const template = await storage.createChecklistTemplate(payload as any);
+
+      res.json(transformTemplateResponse(template));
+    } catch (error) {
+      console.error('AI generation error:', error);
+      res.status(500).json({ message: "Erro ao gerar checklist com IA" });
+    }
+  });
+
+  app.post('/api/checklist-templates/generate-from-prompt', requireAuth, async (req, res) => {
+    try {
+      if (!openai) {
+        return res.status(503).json({ message: "Serviço de IA não disponível" });
+      }
+
+      const { prompt } = req.body;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: `${prompt}
+
+          Gere um CSV para este checklist com as seguintes colunas:
+          campo,tipo,obrigatorio,opcoes,descricao
+
+          Tipos disponíveis: text, textarea, select, multiselect, checkbox, radio, boolean, date, time, datetime, number, rating, file, signature, location
+
+          Para campos com opções (select, radio, multiselect), separe as opções com pipe (|).
+
+          IMPORTANTE: Retorne APENAS o conteúdo CSV puro, sem markdown, sem explicações e sem formatação adicional.`
+        }]
+      });
+
+      const csv = completion.choices[0]?.message?.content || '';
+
+      let cleanCsv = csv;
+      if (cleanCsv.includes('```')) {
+        cleanCsv = cleanCsv.replace(/```csv\n?/g, '').replace(/```/g, '');
+      }
+
+      res.json({ csv: cleanCsv.trim() });
+    } catch (error) {
+      console.error('CSV generation error:', error);
+      res.status(500).json({ message: "Erro ao gerar CSV" });
+    }
+  });
+
   app.get('/api/checklist-templates', requireAuth, async (req, res) => {
     try {
       const { user } = req;
       const { category } = req.query;
-      
-      let templates;
-      if (category && typeof category === 'string') {
-        templates = await storage.getChecklistTemplatesByCategory(user?.organizationId || 'master-org-id', category);
-      } else {
-        templates = await storage.getChecklistTemplatesByOrganization(user?.organizationId || 'master-org-id');
-      }
-      
-      // Transform templates to include folder metadata
-      const transformedTemplates = templates.map(template => {
-        if (template.category === '__folder__' && template.description) {
-          try {
-            const metadata = JSON.parse(template.description);
-            return {
-              ...template,
-              is_category_folder: true,
-              folder_icon: metadata.folder_icon || 'folder',
-              folder_color: metadata.folder_color || 'blue',
-              parent_folder_id: metadata.parent_folder_id || null,
-              description: metadata.user_description || '',
-              fields_count: 0,
-              created_at: template.createdAt,
-              updated_at: template.updatedAt
-            };
-          } catch (e) {
-            console.error('Error parsing folder metadata:', e);
-          }
-        }
-        return {
-          ...template,
-          is_category_folder: false,
-          fields_count: template.items?.length || 0,
-          created_at: template.createdAt,
-          updated_at: template.updatedAt
-        };
-      });
-      
-      res.json(transformedTemplates);
+
+      const organizationId = user?.organizationId || 'master-org-id';
+
+      const templates = category && typeof category === 'string'
+        ? await storage.getChecklistTemplatesByCategory(organizationId, category)
+        : await storage.getChecklistTemplatesByOrganization(organizationId);
+
+      res.json(templates.map(template => transformTemplateResponse(template)));
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
@@ -1230,16 +1256,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       const template = await storage.getChecklistTemplate(req.params.id);
-      
+
       if (!template) {
         return res.status(404).json({ message: "Template não encontrado" });
       }
-      
+
       if (!canAccessOrganization(user, template.organizationId)) {
         return res.status(403).json({ message: "Sem permissão para acessar este template" });
       }
-      
-      res.json(template);
+
+      res.json(transformTemplateResponse(template));
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
@@ -1249,89 +1275,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       const { id } = req.params;
-      
+
       const template = await storage.getChecklistTemplate(id);
       if (!template) {
         return res.status(404).json({ message: "Template não encontrado" });
       }
-      
+
       if (!canAccessOrganization(user, template.organizationId)) {
         return res.status(403).json({ message: "Sem permissão para editar este template" });
       }
-      
-      const updated = await storage.updateChecklistTemplate(id, {
-        name: req.body.name,
-        description: req.body.description,
-        category: req.body.category,
-        items: req.body.items,
-        isPublic: (req.body as any).is_public ?? req.body.isPublic
-      });
-      
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
 
-  app.post('/api/checklist-templates', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      
-      if (!hasPermission(user, 'create_inspection')) {
-        return res.status(403).json({ message: "Sem permissão para criar templates" });
-      }
-      
-      const templateData = createChecklistTemplateSchema.parse({
-        ...req.body,
-        organizationId: user.organizationId,
-        createdBy: user.id
-      });
-      
-      const template = await storage.createChecklistTemplate(templateData);
-      
-      // Log activity
-      await storage.createActivityLog({
-        userId: user.id,
-        organizationId: user.organizationId!,
-        action: 'create_checklist_template',
-        entityType: 'checklist_template',
-        entityId: template.id,
-        details: { name: template.name, category: template.category }
-      });
-      
-      res.status(201).json(template);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
+      const updates: Record<string, any> = {};
 
-  app.put('/api/checklist-templates/:id', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      const template = await storage.getChecklistTemplate(req.params.id);
-      
-      if (!template) {
-        return res.status(404).json({ message: "Template não encontrado" });
+      if (req.body.name !== undefined) updates.name = req.body.name;
+      if (req.body.description !== undefined) updates.description = req.body.description ?? null;
+      if (req.body.category !== undefined) updates.category = req.body.category;
+
+      const folderIdInput = req.body.folderId ?? req.body.folder_id ?? req.body.parent_folder_id;
+      if (folderIdInput !== undefined) {
+        const folderId = folderIdInput && folderIdInput !== 'none' ? folderIdInput : null;
+        updates.folderId = folderId;
+        updates.parentCategoryId = folderId;
       }
-      
-      if (!canAccessOrganization(user, template.organizationId)) {
-        return res.status(403).json({ message: "Sem permissão para editar este template" });
+
+      if (req.body.tags !== undefined) {
+        updates.tags = Array.isArray(req.body.tags)
+          ? req.body.tags.map((tag: any) => tag?.toString()).filter(Boolean)
+          : typeof req.body.tags === 'string'
+          ? req.body.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean)
+          : [];
       }
-      
-      const updates = createChecklistTemplateSchema.partial().parse(req.body);
-      const updatedTemplate = await storage.updateChecklistTemplate(req.params.id, updates);
-      
-      // Log activity
+
+      if (req.body.isPublic !== undefined || req.body.is_public !== undefined) {
+        updates.isPublic = Boolean(req.body.isPublic ?? req.body.is_public);
+      }
+
+      if (req.body.folder_color !== undefined || req.body.folderColor !== undefined) {
+        updates.folderColor = req.body.folderColor ?? req.body.folder_color;
+      }
+
+      if (req.body.folder_icon !== undefined || req.body.folderIcon !== undefined) {
+        updates.folderIcon = req.body.folderIcon ?? req.body.folder_icon;
+      }
+
+      if ((req.body.items && Array.isArray(req.body.items)) || (req.body.fields && Array.isArray(req.body.fields))) {
+        const normalizedItems = normalizeChecklistItems(
+          {
+            ...req.body,
+            items: req.body.items,
+            fields: req.body.fields
+          },
+          req.body.category ?? template.category
+        );
+        updates.items = normalizedItems;
+        updates.fieldCount = normalizedItems.length;
+      }
+
+      const updatedTemplate = await storage.updateChecklistTemplate(id, updates as any);
+
       await storage.createActivityLog({
         userId: user.id,
         organizationId: user.organizationId!,
         action: 'update_checklist_template',
         entityType: 'checklist_template',
         entityId: template.id,
-        details: { name: template.name }
+        details: { name: updates.name ?? template.name }
       });
-      
-      res.json(updatedTemplate);
+
+      res.json(transformTemplateResponse(updatedTemplate));
     } catch (error) {
       res.status(400).json({ message: (error as Error).message });
     }
@@ -1341,18 +1352,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { user } = req;
       const template = await storage.getChecklistTemplate(req.params.id);
-      
+
       if (!template) {
         return res.status(404).json({ message: "Template não encontrado" });
       }
-      
+
       if (!canAccessOrganization(user, template.organizationId) || !hasPermission(user, 'manage_organization')) {
         return res.status(403).json({ message: "Sem permissão para excluir este template" });
       }
-      
+
       await storage.deleteChecklistTemplate(req.params.id);
-      
-      // Log activity
+
       await storage.createActivityLog({
         userId: user.id,
         organizationId: user.organizationId!,
@@ -1361,7 +1371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: template.id,
         details: { name: template.name }
       });
-      
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
@@ -1763,74 +1773,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const folders = await storage.getChecklistFoldersByOrganization(user?.organizationId || 'master-org-id');
       res.json(folders);
     } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Create inspection (COMPIA implementation)
-  app.post('/api/inspections', requireAuth, async (req, res) => {
-    try {
-      const { user } = req;
-      
-      // Extract data from request body without validation
-      const title = req.body.title;
-      const location = req.body.location; 
-      const description = req.body.description;
-      const checklistTemplateId = req.body.checklistTemplateId;
-      let scheduledAt = req.body.scheduledAt;
-      
-      if (!user) {
-        return res.status(401).json({ message: "Usuário não autenticado" });
-      }
-      
-      // Validate required fields manually
-      if (!title || !location || !checklistTemplateId) {
-        return res.status(400).json({ message: "Campos obrigatórios: title, location, checklistTemplateId" });
-      }
-      
-      // Get the checklist template
-      const template = await storage.getChecklistTemplate(checklistTemplateId);
-      if (!template) {
-        return res.status(404).json({ message: "Template de checklist não encontrado" });
-      }
-      
-      // Process scheduledAt to ensure it's a Date
-      if (scheduledAt && typeof scheduledAt === 'string') {
-        scheduledAt = new Date(scheduledAt);
-      } else if (!scheduledAt) {
-        scheduledAt = new Date();
-      }
-      
-      // Create inspection data manually (no schema validation)
-      const inspectionData = {
-        title: String(title),
-        location: String(location),
-        description: description ? String(description) : null,
-        checklistTemplateId: String(checklistTemplateId),
-        scheduledAt: scheduledAt,
-        status: 'draft' as const,
-        organizationId: user?.organizationId || 'master-org-id',
-        inspectorId: user?.id || 'admin-id'
-      };
-      
-      console.log('Route - User data:', { id: user?.id, organizationId: user?.organizationId });
-      console.log('Route - Inspection data before storage:', inspectionData);
-      
-      const inspection = await storage.createInspection(inspectionData);
-      
-      // Log activity
-      await storage.createActivityLog({
-        userId: user?.id || 'admin-id',
-        organizationId: user?.organizationId || 'master-org-id',
-        action: 'Inspeção criada',
-        entityType: 'inspection',
-        entityId: inspection.id,
-        details: { title, location }
-      });
-      
-      res.json(inspection);
-    } catch (error) {
-      console.error('Error creating inspection:', error);
       res.status(500).json({ message: (error as Error).message });
     }
   });
