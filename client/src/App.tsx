@@ -1,30 +1,31 @@
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "./hooks/useAuth";
-import Dashboard from "@/pages/Dashboard";
-import Organizations from "@/pages/Organizations";
-import Inspections from "@/pages/Inspections";
-import ActionPlans from "@/pages/ActionPlans";
-import Reports from "@/pages/Reports";
-import Users from "@/pages/Users";
-import ChecklistTemplates from "@/pages/ChecklistTemplates";
-import NewChecklistTemplate from "@/pages/NewChecklistTemplate";
-import ChecklistDetail from "@/pages/ChecklistDetail";
-import ChecklistEdit from "@/pages/ChecklistEdit";
-import CSVImport from "@/pages/CSVImport";
-import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
-import NewInspection from "@/pages/NewInspection";
-import InspectionDetail from "@/pages/InspectionDetail";
-import Companies from "@/pages/Companies";
-import CompanyForm from "@/pages/CompanyForm";
-import AcceptInvite from "@/pages/AcceptInvite";
-import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/Layout/Sidebar";
 import TopBar from "@/components/Layout/TopBar";
 import AIChatbot from "@/components/AIChatbot";
+import ActionPlans from "@/pages/ActionPlans";
+import Companies from "@/pages/Companies";
+import CompanyForm from "@/pages/CompanyForm";
+import Dashboard from "@/pages/Dashboard";
+import InspectionDetail from "@/pages/InspectionDetail";
+import Inspections from "@/pages/Inspections";
+import ChecklistDetail from "@/pages/ChecklistDetail";
+import ChecklistEdit from "@/pages/ChecklistEdit";
+import ChecklistTemplates from "@/pages/ChecklistTemplates";
+import NewChecklistTemplate from "@/pages/NewChecklistTemplate";
+import NewInspection from "@/pages/NewInspection";
+import Organizations from "@/pages/Organizations";
+import Reports from "@/pages/Reports";
+import Users from "@/pages/Users";
+import CSVImport from "@/pages/CSVImport";
+import AIChecklistGenerator from "@/pages/AIChecklistGenerator";
+import AcceptInvite from "@/pages/AcceptInvite";
+import NotFound from "@/pages/not-found";
+import { queryClient } from "./lib/queryClient";
+import { useAuth } from "./hooks/useAuth";
+import compiaLogo from "@/assets/compia-logo.png";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -33,7 +34,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-2xl font-heading font-bold text-foreground mb-4">COMPIA</h1>
+          <div className="flex flex-col items-center mb-4">
+            <img
+              src={compiaLogo}
+              alt="Logotipo da COMPIA"
+              className="w-20 h-20 animate-pulse"
+            />
+            <span className="sr-only">COMPIA</span>
+          </div>
           <p className="text-muted-foreground mb-4">Carregando...</p>
         </div>
       </div>
@@ -54,30 +62,40 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AuthenticatedRoutes() {
+  return (
+    <AppLayout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/organizations" component={Organizations} />
+        <Route path="/inspections" component={Inspections} />
+        <Route path="/inspections/new" component={NewInspection} />
+        <Route path="/inspections/:id" component={InspectionDetail} />
+        <Route path="/checklists" component={ChecklistTemplates} />
+        <Route path="/checklist-templates" component={ChecklistTemplates} />
+        <Route path="/checklists/new" component={NewChecklistTemplate} />
+        <Route path="/checklists/import" component={CSVImport} />
+        <Route path="/checklists/ai-generator" component={AIChecklistGenerator} />
+        <Route path="/checklists/:id/edit" component={ChecklistEdit} />
+        <Route path="/checklists/:id" component={ChecklistDetail} />
+        <Route path="/action-plans" component={ActionPlans} />
+        <Route path="/reports" component={Reports} />
+        <Route path="/users" component={Users} />
+        <Route path="/companies" component={Companies} />
+        <Route path="/companies/new" component={CompanyForm} />
+        <Route path="/companies/:id/edit" component={CompanyForm} />
+        <Route component={NotFound} />
+      </Switch>
+    </AppLayout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/accept-invite" component={AcceptInvite} />
-      <Route path="/" component={() => <AppLayout><Dashboard /></AppLayout>} />
-      <Route path="/dashboard" component={() => <AppLayout><Dashboard /></AppLayout>} />
-      <Route path="/organizations" component={() => <AppLayout><Organizations /></AppLayout>} />
-      <Route path="/inspections" component={() => <AppLayout><Inspections /></AppLayout>} />
-      <Route path="/inspections/new" component={() => <AppLayout><NewInspection /></AppLayout>} />
-      <Route path="/inspections/:id" component={() => <AppLayout><InspectionDetail /></AppLayout>} />
-      <Route path="/checklists" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
-      <Route path="/checklist-templates" component={() => <AppLayout><ChecklistTemplates /></AppLayout>} />
-      <Route path="/checklists/new" component={() => <AppLayout><NewChecklistTemplate /></AppLayout>} />
-      <Route path="/checklists/import" component={() => <AppLayout><CSVImport /></AppLayout>} />
-      <Route path="/checklists/ai-generator" component={() => <AppLayout><AIChecklistGenerator /></AppLayout>} />
-      <Route path="/checklists/:id/edit" component={() => <AppLayout><ChecklistEdit /></AppLayout>} />
-      <Route path="/checklists/:id" component={() => <AppLayout><ChecklistDetail /></AppLayout>} />
-      <Route path="/action-plans" component={() => <AppLayout><ActionPlans /></AppLayout>} />
-      <Route path="/reports" component={() => <AppLayout><Reports /></AppLayout>} />
-      <Route path="/users" component={() => <AppLayout><Users /></AppLayout>} />
-      <Route path="/companies" component={() => <AppLayout><Companies /></AppLayout>} />
-      <Route path="/companies/new" component={() => <AppLayout><CompanyForm /></AppLayout>} />
-      <Route path="/companies/:id/edit" component={() => <AppLayout><CompanyForm /></AppLayout>} />
-      <Route component={NotFound} />
+      <Route component={AuthenticatedRoutes} />
     </Switch>
   );
 }

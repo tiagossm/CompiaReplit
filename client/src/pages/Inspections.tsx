@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
-import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,25 +11,20 @@ import {
   Search, 
   Filter,
   Calendar,
-  User,
   MapPin,
   Clock,
   Play,
   CheckCircle2,
   AlertCircle,
-  Edit,
   Trash2,
   Copy,
-  Download,
-  Upload
+  Download
 } from 'lucide-react';
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
 import type { Inspection } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Inspections() {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
@@ -38,7 +32,21 @@ export default function Inspections() {
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [, setLocation] = useLocation();
+
+  const deleteMutation = useMutation<void, Error, string>({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/inspections/${id}`, "DELETE");
+    },
+    onSuccess: (_data, id) => {
+      setInspections(prev => prev.filter(inspection => inspection.id !== id));
+      setShowDeleteModal(null);
+      alert('Inspeção excluída com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao excluir inspeção:', error);
+      alert('Erro ao excluir inspeção. Tente novamente.');
+    },
+  });
 
   useEffect(() => {
     fetchInspections();
@@ -59,21 +67,6 @@ export default function Inspections() {
         setLoading(false);
       });
   };
-
-  const deleteMutation = useMutation<void, Error, string>({
-    mutationFn: async (id: string) => {
-      await apiRequest(`/api/inspections/${id}`, "DELETE");
-    },
-    onSuccess: (_data, id) => {
-      setInspections(prev => prev.filter(inspection => inspection.id !== id));
-      setShowDeleteModal(null);
-      alert('Inspeção excluída com sucesso!');
-    },
-    onError: (error) => {
-      console.error('Erro ao excluir inspeção:', error);
-      alert('Erro ao excluir inspeção. Tente novamente.');
-    },
-  });
 
   const handleDeleteInspection = (id: string) => {
     deleteMutation.mutate(id);
@@ -374,11 +367,7 @@ export default function Inspections() {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  if (showDeleteModal) {
-                    handleDeleteInspection(showDeleteModal);
-                  }
-                }}
+                onClick={() => handleDeleteInspection(showDeleteModal!)}
                 disabled={deleteMutation.isPending}
               >
                 Excluir
