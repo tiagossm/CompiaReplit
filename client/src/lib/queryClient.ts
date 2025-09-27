@@ -25,7 +25,6 @@ export async function apiRequest(
     }
   } else if (methodOrOptions) {
     options = { ...options, ...(methodOrOptions as RequestInit) };
-    // if caller passed body as plain object in third arg, prefer it
     if (data !== undefined) {
       options.headers = { ...(options.headers || {}), "Content-Type": "application/json" };
       options.body = JSON.stringify(data);
@@ -35,7 +34,6 @@ export async function apiRequest(
   const res = await fetch(url, options);
   await throwIfResNotOk(res);
 
-  // attempt to parse JSON, but return text if parsing fails
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) {
     return res.json();
@@ -44,66 +42,50 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-// Keep the query function flexible and return any so callers can type their queries
-export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const parts = queryKey as ReadonlyArray<unknown>;
+
+// Função para montar a URL a partir do queryKey
+function buildRequestUrl(queryKey: unknown): string {
+  if (typeof queryKey === "string") {
+    return queryKey;
+  }
+
+  if (Array.isArray(queryKey)) {
+    const parts = queryKey.filter((p) => p !== null && p !== undefined);
 
     const pathSegments: string[] = [];
     const paramObjects: Array<Record<string, unknown>> = [];
 
     for (const part of parts) {
-      if (part === null || part === undefined) {
-        continue;
-      }
-
       if (typeof part === "string" || typeof part === "number") {
-        const segment = String(part);
-        if (segment) {
-          pathSegments.push(segment);
-        }
-        continue;
-      }
-
-      if (!Array.isArray(part) && typeof part === "object") {
+        pathSegments.push(String(part));
+      } else if (typeof part === "object" && !Array.isArray(part)) {
         paramObjects.push(part as Record<string, unknown>);
       }
     }
 
-    let url = "";
+    // monta o path
+    let url = pathSegments
+      .map((s, i) => (i === 0 && /^https?:\/\//.test(s) ? s : encodeURIComponent(s)))
+      .join("/");
 
-    pathSegments.forEach((segment, index) => {
-      const normalizedSegment = segment.replace(/^\/+/, "");
+    if (!url.startsWith("http") && !url.startsWith("/")) {
+      url = "/" + url;
+    }
 
-      if (index === 0) {
-        if (/^https?:\/\//.test(segment)) {
-          url = segment;
-        } else if (segment.startsWith("/")) {
-          url = segment;
-        } else {
-          url = `/${normalizedSegment}`;
-        }
-        return;
-      }
-
-      if (!url.endsWith("/")) {
-        url += "/";
-      }
-      url += normalizedSegment;
-    });
-
+    // monta query string
     const searchParams = new URLSearchParams();
-
     for (const params of paramObjects) {
       for (const [key, value] of Object.entries(params)) {
-        if (value === undefined) continue;
+        if (value === undefined || value === null) continue;
 
         if (Array.isArray(value)) {
-          for (const item of value) {
-            if (item === undefined) continue;
-            searchParams.append(key, String(item));
-          }
+          value.forEach((item) => {
+            if (item !== undefined && item !== null) {
+              searchParams.append(key, String(item));
+            }
+          });
+        } else if (typeof value === "object") {
+          searchParams.append(key, JSON.stringify(value));
         } else {
           searchParams.append(key, String(value));
         }
@@ -111,7 +93,17 @@ export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunc
     }
 
     const queryString = searchParams.toString();
-    const requestUrl = queryString ? `${url}?${queryString}` : url;
+    return queryString ? `${url}?${queryString}` : url;
+  }
+
+  return String(queryKey ?? "");
+}
+
+// Keep the query function flexible and return any so callers can type their queries
+export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
+  ({ on401: unauthorizedBehavior }) =>
+  async ({ queryKey }) => {
+    const requestUrl = buildRequestUrl(queryKey);
 
     const res = await fetch(requestUrl, {
       credentials: "include",
