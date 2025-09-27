@@ -25,18 +25,34 @@ import {
   HelpCircle,
   Info
 } from 'lucide-react';
-import type { Inspection } from "@shared/schema";
+import type { Inspection, ChecklistTemplate } from "@shared/schema";
 
 export default function InspectionDetail() {
-  const [match, params] = useRoute('/inspections/:id');
+  const [match, params] = useRoute<{ id: string }>('/inspections/:id');
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const inspectionId = params?.id;
+  const inspectionId = params ? params.id : undefined;
 
   const { data: inspection, isLoading, error } = useQuery<Inspection>({
     queryKey: ['/api/inspections', inspectionId],
     enabled: !!inspectionId,
+    retry: false,
+  });
+
+  const checklistLength = (inspection?.checklist as { length?: number } | null | undefined)?.length ?? 0;
+
+  const shouldFetchChecklistTemplate = Boolean(
+    inspection?.checklistTemplateId && checklistLength === 0
+  );
+
+  const {
+    data: checklistTemplate,
+    isLoading: isChecklistTemplateLoading,
+    error: checklistTemplateError,
+  } = useQuery<ChecklistTemplate | null>({
+    queryKey: ['/api/checklist-templates', inspection?.checklistTemplateId ?? ''],
+    enabled: shouldFetchChecklistTemplate,
     retry: false,
   });
 
@@ -147,6 +163,9 @@ export default function InspectionDetail() {
       </div>
     );
   }
+
+  const hasChecklist = Boolean(checklistLength || inspection.checklistTemplateId);
+  const hasChecklistItems = checklistLength > 0;
 
   return (
     <TooltipProvider>
@@ -353,20 +372,60 @@ export default function InspectionDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {inspection.checklist ? (
+              {hasChecklist ? (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
                     <p className="text-green-800">
-                      Checklist baseado no template selecionado está ativo.
+                      {hasChecklistItems
+                        ? 'Checklist baseado no template selecionado está ativo.'
+                        : 'Um template de checklist está vinculado a esta inspeção.'}
                     </p>
                   </div>
-                  {/* TODO: Implementar componente de checklist */}
-                  <div className="p-4 bg-muted rounded-lg border-2 border-dashed border-muted-foreground/20">
-                    <p className="text-center text-muted-foreground">
-                      Componente de checklist será implementado aqui
+
+                  {inspection.checklistTemplateId && (
+                    <div className="p-4 bg-muted/50 rounded-lg border border-muted-foreground/20 text-left space-y-2">
+                      <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                        Template Vinculado
+                      </h4>
+                      {isChecklistTemplateLoading ? (
+                        <p className="text-sm text-muted-foreground">
+                          Carregando informações do template...
+                        </p>
+                      ) : checklistTemplateError ? (
+                        <p className="text-sm text-red-600">
+                          Não foi possível carregar as informações do template.
+                        </p>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="text-base font-medium text-compia-blue">
+                            {checklistTemplate?.name || 'Template selecionado'}
+                          </p>
+                          {checklistTemplate?.description ? (
+                            <p className="text-sm text-muted-foreground">
+                              {checklistTemplate.description}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              ID do template: {inspection.checklistTemplateId}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {hasChecklistItems ? (
+                    <div className="p-4 bg-muted rounded-lg border-2 border-dashed border-muted-foreground/20">
+                      <p className="text-center text-muted-foreground">
+                        Componente de checklist será implementado aqui
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      O checklist será carregado automaticamente quando houver itens associados ao template selecionado.
                     </p>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">
