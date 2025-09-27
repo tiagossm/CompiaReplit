@@ -322,7 +322,7 @@ export default function AcceptInvite() {
                 <div className="pt-4">
                   <Button
                     type="submit"
-                    disabled={acceptInviteMutation.isPending || isValidToken === false || !token}
+                    disabled={acceptInviteMutation.isPending || isValidToken !== true || !token}
                     className="w-full bg-compia-blue hover:bg-compia-blue/90 text-primary-foreground"
                     data-testid="accept-invitation-button"
                   >

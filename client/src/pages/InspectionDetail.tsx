@@ -28,11 +28,11 @@ import {
 import type { Inspection } from "@shared/schema";
 
 export default function InspectionDetail() {
-  const [match, params] = useRoute('/inspections/:id');
+  const [match, params] = useRoute<{ id: string }>('/inspections/:id');
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const inspectionId = params?.id;
+  const inspectionId = params ? params.id : undefined;
 
   const { data: inspection, isLoading, error } = useQuery<Inspection>({
     queryKey: ['/api/inspections', inspectionId],

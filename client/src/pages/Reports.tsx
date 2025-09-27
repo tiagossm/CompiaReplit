@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth, hasPermission } from "@/hooks/useAuth";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend, BarChart, Bar } from "recharts";
 import type { DashboardStats, ComplianceReport, InspectionReport } from "@/lib/types";
+import type { Organization } from "@shared/schema";
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
 
@@ -25,7 +26,7 @@ export default function Reports() {
     queryKey: ['/api/dashboard/stats', { organizationId: selectedOrganization !== "all" ? selectedOrganization : undefined }],
   });
 
-  const { data: organizations } = useQuery({
+  const { data: organizations } = useQuery<Organization[]>({
     queryKey: ['/api/organizations'],
   });
 

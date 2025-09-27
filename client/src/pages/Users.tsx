@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, hasPermission } from "@/hooks/useAuth";
 import type { User, UserWithOrganization, Invitation, InvitationWithDetails } from "@/lib/types";
+import type { Organization } from "@shared/schema";
 import { ROLE_LABELS } from "@/lib/constants";
 import InviteUserDialog from "@/components/Organizations/InviteUserDialog";
 import { 
@@ -42,7 +43,7 @@ export default function Users() {
     queryKey: ['/api/invitations', { organizationId: selectedOrganization !== "all" ? selectedOrganization : undefined }],
   });
 
-  const { data: organizations } = useQuery({
+  const { data: organizations } = useQuery<Organization[]>({
     queryKey: ['/api/organizations'],
     enabled: user.role === 'system_admin'
   });

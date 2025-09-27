@@ -455,7 +455,11 @@ COMPIA - Sistema Inteligente de Segurança do Trabalho
     `;
   } else if (type === "action-plan") {
     const plan = data as ActionPlan;
-    
+    const tasks = (plan as unknown as { tasks?: any[] }).tasks ?? [];
+    const formattedTasks = tasks
+      .map(task => `[ ${task.isCompleted ? 'X' : ' '} ] ${task.title}\n    ${task.description || ''}`)
+      .join('\n\n');
+
     content = `
 PLANO DE AÇÃO - METODOLOGIA 5W2H
 
@@ -467,7 +471,7 @@ ID do Plano: ${plan.id}
 Título: ${plan.title}
 Prioridade: ${plan.priority}
 Status: ${plan.status}
-Responsável: ${plan.assigneeId}
+Responsável: ${plan.assignedTo ?? 'Não definido'}
 
 WHAT (O QUÊ)
 ------------
@@ -500,9 +504,7 @@ ${plan.howMuch}
 
 TAREFAS
 -------
-${(plan.tasks as any[] || []).map((task: any) => 
-  `[ ${task.isCompleted ? 'X' : ' '} ] ${task.title}\n    ${task.description || ''}`
-).join('\n\n')}
+${formattedTasks}
 
 ================================================================================
 Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}

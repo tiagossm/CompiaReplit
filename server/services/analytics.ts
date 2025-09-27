@@ -244,12 +244,13 @@ export function generateTrendAnalysis(data: any[], period: string): any {
   }, {} as Record<string, any[]>);
   
   // Calculate metrics for each period
-  Object.entries(grouped).forEach(([key, items]) => {
+  Object.entries(grouped as Record<string, any[]>).forEach(([key, items]) => {
+    const groupItems = items as any[];
     const periodData = {
       period: key,
-      count: items.length,
-      compliance: calculateComplianceForItems(items),
-      avgResolutionTime: calculateAvgResolutionTime(items)
+      count: groupItems.length,
+      compliance: calculateComplianceForItems(groupItems),
+      avgResolutionTime: calculateAvgResolutionTime(groupItems)
     };
     
     if (period === 'daily') trends.daily.push(periodData);

@@ -39,6 +39,7 @@ export default function Inspections() {
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function Inspections() {
 
   const handleDeleteInspection = async (id: string) => {
     try {
+      setDeleteLoading(true);
       const response = await fetch(`/api/inspections/${id}`, {
         method: 'DELETE'
       });
@@ -77,6 +79,8 @@ export default function Inspections() {
     } catch (error) {
       console.error('Erro ao excluir inspeção:', error);
       alert('Erro ao excluir inspeção. Tente novamente.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -373,10 +377,10 @@ export default function Inspections() {
               <Button variant="outline" onClick={() => setShowDeleteModal(null)}>
                 Cancelar
               </Button>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={() => handleDeleteInspection(showDeleteModal)}
-                disabled={deleteMutation.isPending}
+                disabled={deleteLoading}
               >
                 Excluir
               </Button>
