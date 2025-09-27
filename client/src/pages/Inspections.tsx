@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'wouter';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,17 +11,14 @@ import {
   Search, 
   Filter,
   Calendar,
-  User,
   MapPin,
   Clock,
   Play,
   CheckCircle2,
   AlertCircle,
-  Edit,
   Trash2,
   Copy,
-  Download,
-  Upload
+  Download
 } from 'lucide-react';
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -379,9 +375,9 @@ export default function Inspections() {
               <Button variant="outline" onClick={() => setShowDeleteModal(null)}>
                 Cancelar
               </Button>
-              <Button 
-                variant="destructive" 
-                onClick={() => handleDeleteInspection(showDeleteModal)}
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteInspection(showDeleteModal!)}
                 disabled={deleteMutation.isPending}
               >
                 Excluir
