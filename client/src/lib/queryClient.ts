@@ -48,7 +48,58 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const [baseUrl, rawParams] = queryKey as [string, unknown?];
+
+    let requestUrl = baseUrl;
+
+    if (rawParams !== undefined && rawParams !== null) {
+      const stableParamsString = JSON.stringify(rawParams);
+      const parsedParams = JSON.parse(stableParamsString) as unknown;
+
+      if (
+        parsedParams &&
+        typeof parsedParams === "object" &&
+        !Array.isArray(parsedParams)
+      ) {
+        const searchParams = new URLSearchParams();
+
+        const appendParam = (key: string, value: unknown) => {
+          if (value === undefined || value === null) {
+            return;
+          }
+
+          if (Array.isArray(value)) {
+            value.forEach((item) => appendParam(key, item));
+            return;
+          }
+
+          if (typeof value === "object") {
+            searchParams.append(key, JSON.stringify(value));
+            return;
+          }
+
+          searchParams.append(key, String(value));
+        };
+
+        Object.entries(parsedParams as Record<string, unknown>).forEach(
+          ([key, value]) => {
+            appendParam(key, value);
+          },
+        );
+
+        const queryString = searchParams.toString();
+        if (queryString) {
+          requestUrl = `${baseUrl}?${queryString}`;
+        }
+      } else {
+        const pathSegment = String(parsedParams);
+        if (pathSegment) {
+          requestUrl = `${baseUrl}/${encodeURIComponent(pathSegment)}`;
+        }
+      }
+    }
+
+    const res = await fetch(requestUrl, {
       credentials: "include",
     });
 
