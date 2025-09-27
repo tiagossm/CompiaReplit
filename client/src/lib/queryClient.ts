@@ -48,13 +48,48 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const [url, ...paramObjects] = queryKey as [string, ...Array<Record<string, unknown>>];
+    const parts = queryKey as ReadonlyArray<unknown>;
+
+    const pathSegments: string[] = [];
+    const paramObjects: Array<Record<string, unknown>> = [];
+
+    for (const part of parts) {
+      if (part === null || part === undefined) {
+        continue;
+      }
+
+      if (typeof part === "string" || typeof part === "number") {
+        const segment = String(part);
+        if (segment) {
+          pathSegments.push(segment);
+        }
+        continue;
+      }
+
+      if (!Array.isArray(part) && typeof part === "object") {
+        paramObjects.push(part as Record<string, unknown>);
+      }
+    }
+
+    let url = "";
+
+    pathSegments.forEach((segment, index) => {
+      if (index === 0) {
+        url = segment;
+        return;
+      }
+
+      const normalizedSegment = segment.replace(/^\/+/, "");
+      if (url.endsWith("/")) {
+        url = `${url}${normalizedSegment}`;
+      } else {
+        url = `${url}/${normalizedSegment}`;
+      }
+    });
 
     const searchParams = new URLSearchParams();
 
     for (const params of paramObjects) {
-      if (!params || typeof params !== "object") continue;
-
       for (const [key, value] of Object.entries(params)) {
         if (value === undefined) continue;
 
