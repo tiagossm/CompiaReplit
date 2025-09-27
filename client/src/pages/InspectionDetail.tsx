@@ -148,6 +148,10 @@ export default function InspectionDetail() {
     );
   }
 
+  const hasChecklist = Array.isArray(inspection.checklist)
+    ? inspection.checklist.length > 0
+    : Boolean(inspection.checklist);
+
   return (
     <TooltipProvider>
       <div className="p-6 max-w-6xl mx-auto" data-testid="inspection-detail-page">
@@ -353,7 +357,7 @@ export default function InspectionDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {inspection.checklist ? (
+              {hasChecklist ? (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
