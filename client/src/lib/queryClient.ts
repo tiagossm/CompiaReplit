@@ -99,7 +99,7 @@ function buildRequestUrl(queryKey: unknown): string {
   return String(queryKey ?? "");
 }
 
-// Keep the query function flexible and return any so callers can type their queries
+// Query function genérica
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
