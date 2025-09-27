@@ -25,6 +25,7 @@ import AcceptInvite from "@/pages/AcceptInvite";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "./lib/queryClient";
 import { useAuth } from "./hooks/useAuth";
+import compiaLogo from "@/assets/compia-logo.png";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -33,7 +34,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-2xl font-heading font-bold text-foreground mb-4">COMPIA</h1>
+          <div className="flex flex-col items-center mb-4">
+            <img
+              src={compiaLogo}
+              alt="Logotipo da COMPIA"
+              className="w-20 h-20 animate-pulse"
+            />
+            <span className="sr-only">COMPIA</span>
+          </div>
           <p className="text-muted-foreground mb-4">Carregando...</p>
         </div>
       </div>
