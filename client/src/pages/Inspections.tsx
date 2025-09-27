@@ -61,23 +61,22 @@ export default function Inspections() {
       });
   };
 
-  const handleDeleteInspection = async (id: string) => {
-    try {
-      const response = await fetch(`/api/inspections/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/inspections/${id}`, 'DELETE'),
+  });
+
+  const handleDeleteInspection = (id: string) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
         setInspections(prev => prev.filter(inspection => inspection.id !== id));
         setShowDeleteModal(null);
         alert('Inspeção excluída com sucesso!');
-      } else {
-        throw new Error('Erro ao excluir inspeção');
-      }
-    } catch (error) {
-      console.error('Erro ao excluir inspeção:', error);
-      alert('Erro ao excluir inspeção. Tente novamente.');
-    }
+      },
+      onError: (error) => {
+        console.error('Erro ao excluir inspeção:', error);
+        alert('Erro ao excluir inspeção. Tente novamente.');
+      },
+    });
   };
 
   const handleCloneInspection = async (id: string, title: string) => {
