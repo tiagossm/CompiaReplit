@@ -105,8 +105,7 @@ export default function ActionPlans() {
 
   const generateRecommendationMutation = useMutation({
     mutationFn: async (finding: any) => {
-      const response = await apiRequest('/api/action-plans/generate', 'POST', { finding });
-      return response.json();
+      return await apiRequest('/api/action-plans/generate', 'POST', { finding });
     },
     onSuccess: (recommendations) => {
       form.setValue('what', recommendations.what);
