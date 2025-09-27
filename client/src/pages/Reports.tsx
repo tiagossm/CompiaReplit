@@ -267,7 +267,12 @@ export default function Reports() {
       )}
 
       {/* Report Tabs */}
-      <Tabs defaultValue="dashboard" className="space-y-6" data-testid="reports-tabs">
+      <Tabs
+        value={reportType}
+        onValueChange={setReportType}
+        className="space-y-6"
+        data-testid="reports-tabs"
+      >
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dashboard" data-testid="tab-dashboard">
             <BarChart3 className="w-4 h-4 mr-2" />
