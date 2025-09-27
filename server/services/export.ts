@@ -1,4 +1,5 @@
 import type { Inspection, ActionPlan, Organization, ChecklistTemplate } from "@shared/schema";
+import { compiaLogoBase64 } from "../assets/logo";
 import { generateQRCode } from "./documents";
 
 // PDF Export functionality
@@ -22,7 +23,12 @@ export async function exportToPDF(data: any, type: "inspection" | "report" | "ch
           margin-bottom: 30px;
           border-radius: 8px;
         }
-        .logo { font-size: 28px; font-weight: bold; }
+        .logo {
+          height: 48px;
+          width: auto;
+          display: block;
+          object-fit: contain;
+        }
         .title { font-size: 24px; margin: 20px 0; color: #1E293B; }
         .subtitle { font-size: 18px; color: #475569; margin: 15px 0; }
         .section { margin: 20px 0; padding: 20px; background: #F8FAFC; border-radius: 8px; }
@@ -82,7 +88,7 @@ export async function exportToPDF(data: any, type: "inspection" | "report" | "ch
     
     html += `
       <div class="header">
-        <div class="logo">COMPIA</div>
+        <img class="logo" src="${compiaLogoBase64}" alt="Logotipo da COMPIA" />
         <div>Relatório de Inspeção</div>
       </div>
       
@@ -179,7 +185,7 @@ export async function exportToPDF(data: any, type: "inspection" | "report" | "ch
   } else if (type === "report") {
     html += `
       <div class="header">
-        <div class="logo">COMPIA</div>
+        <img class="logo" src="${compiaLogoBase64}" alt="Logotipo da COMPIA" />
         <div>Relatório Executivo</div>
       </div>
       
@@ -250,7 +256,7 @@ export async function exportToPDF(data: any, type: "inspection" | "report" | "ch
     
     html += `
       <div class="header">
-        <div class="logo">COMPIA</div>
+        <img class="logo" src="${compiaLogoBase64}" alt="Logotipo da COMPIA" />
         <div>Template de Checklist</div>
       </div>
       
