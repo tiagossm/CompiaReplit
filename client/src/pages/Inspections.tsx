@@ -24,14 +24,13 @@ import {
   Download,
   Upload
 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import type { Inspection } from "@shared/schema";
 
 export default function Inspections() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
@@ -61,22 +60,23 @@ export default function Inspections() {
       });
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/inspections/${id}`, 'DELETE'),
+  const deleteMutation = useMutation<void, Error, string>({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/inspections/${id}`, "DELETE");
+    },
+    onSuccess: (_data, id) => {
+      setInspections(prev => prev.filter(inspection => inspection.id !== id));
+      setShowDeleteModal(null);
+      alert('Inspeção excluída com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao excluir inspeção:', error);
+      alert('Erro ao excluir inspeção. Tente novamente.');
+    },
   });
 
   const handleDeleteInspection = (id: string) => {
-    deleteMutation.mutate(id, {
-      onSuccess: () => {
-        setInspections(prev => prev.filter(inspection => inspection.id !== id));
-        setShowDeleteModal(null);
-        alert('Inspeção excluída com sucesso!');
-      },
-      onError: (error) => {
-        console.error('Erro ao excluir inspeção:', error);
-        alert('Erro ao excluir inspeção. Tente novamente.');
-      },
-    });
+    deleteMutation.mutate(id);
   };
 
   const handleCloneInspection = async (id: string, title: string) => {
@@ -372,9 +372,13 @@ export default function Inspections() {
               <Button variant="outline" onClick={() => setShowDeleteModal(null)}>
                 Cancelar
               </Button>
-              <Button 
-                variant="destructive" 
-                onClick={() => handleDeleteInspection(showDeleteModal)}
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (showDeleteModal) {
+                    handleDeleteInspection(showDeleteModal);
+                  }
+                }}
                 disabled={deleteMutation.isPending}
               >
                 Excluir
