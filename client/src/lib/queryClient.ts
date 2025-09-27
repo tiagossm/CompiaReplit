@@ -48,45 +48,65 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    let url: string;
+    let requestUrl: string;
 
     if (typeof queryKey === "string") {
-      url = queryKey;
+      requestUrl = queryKey;
     } else if (Array.isArray(queryKey)) {
-      const [path, params, ...rest] = queryKey;
+      const [baseUrl, rawParams, ...rest] = queryKey;
+      requestUrl = String(baseUrl ?? "");
+
+      const remainingSegments = rest.length > 0 ? [rawParams, ...rest] : [];
 
       if (
-        typeof path === "string" &&
-        params &&
-        typeof params === "object" &&
-        !Array.isArray(params) &&
-        rest.length === 0
+        remainingSegments.length === 0 &&
+        rawParams !== undefined &&
+        rawParams !== null &&
+        typeof rawParams === "object" &&
+        !Array.isArray(rawParams)
       ) {
         const searchParams = new URLSearchParams();
 
-        for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-          if (value === undefined || value === null) continue;
+        const appendParam = (key: string, value: unknown) => {
+          if (value === undefined || value === null) {
+            return;
+          }
 
           if (Array.isArray(value)) {
-            for (const item of value) {
-              if (item === undefined || item === null) continue;
-              searchParams.append(key, String(item));
-            }
-          } else {
-            searchParams.append(key, String(value));
+            value.forEach((item) => appendParam(key, item));
+            return;
           }
-        }
 
-        const search = searchParams.toString();
-        url = search ? `${path}?${search}` : path;
+          if (typeof value === "object") {
+            searchParams.append(key, JSON.stringify(value));
+            return;
+          }
+
+          searchParams.append(key, String(value));
+        };
+
+        Object.entries(rawParams as Record<string, unknown>).forEach(([key, value]) => {
+          appendParam(key, value);
+        });
+
+        const queryString = searchParams.toString();
+        if (queryString) {
+          requestUrl = `${requestUrl}?${queryString}`;
+        }
       } else {
-        url = queryKey.map(segment => String(segment)).join("/");
+        const segments = remainingSegments.length > 0 ? remainingSegments : [rawParams];
+
+        segments
+          .filter((segment) => segment !== undefined && segment !== null)
+          .forEach((segment) => {
+            requestUrl = `${requestUrl}/${encodeURIComponent(String(segment))}`;
+          });
       }
     } else {
-      url = String(queryKey as any);
+      requestUrl = String(queryKey as any);
     }
 
-    const res = await fetch(url, {
+    const res = await fetch(requestUrl, {
       credentials: "include",
     });
 
