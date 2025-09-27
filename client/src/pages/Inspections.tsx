@@ -24,14 +24,12 @@ import {
   Download,
   Upload
 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
 import type { Inspection } from "@shared/schema";
 
 export default function Inspections() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
@@ -40,6 +38,29 @@ export default function Inspections() {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/inspections/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao excluir inspeção');
+      }
+
+      return id;
+    },
+    onSuccess: (_data, id) => {
+      setInspections(prev => prev.filter(inspection => inspection.id !== id));
+      setShowDeleteModal(null);
+      alert('Inspeção excluída com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao excluir inspeção:', error);
+      alert('Erro ao excluir inspeção. Tente novamente.');
+    }
+  });
 
   useEffect(() => {
     fetchInspections();
@@ -61,23 +82,8 @@ export default function Inspections() {
       });
   };
 
-  const handleDeleteInspection = async (id: string) => {
-    try {
-      const response = await fetch(`/api/inspections/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        setInspections(prev => prev.filter(inspection => inspection.id !== id));
-        setShowDeleteModal(null);
-        alert('Inspeção excluída com sucesso!');
-      } else {
-        throw new Error('Erro ao excluir inspeção');
-      }
-    } catch (error) {
-      console.error('Erro ao excluir inspeção:', error);
-      alert('Erro ao excluir inspeção. Tente novamente.');
-    }
+  const handleDeleteInspection = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   const handleCloneInspection = async (id: string, title: string) => {
