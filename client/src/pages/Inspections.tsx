@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +21,10 @@ import {
   Download
 } from 'lucide-react';
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
 import type { Inspection } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Inspections() {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
@@ -33,19 +32,10 @@ export default function Inspections() {
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [, setLocation] = useLocation();
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useMutation<void, Error, string>({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/inspections/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao excluir inspeção');
-      }
-
-      return id;
+      await apiRequest(`/api/inspections/${id}`, "DELETE");
     },
     onSuccess: (_data, id) => {
       setInspections(prev => prev.filter(inspection => inspection.id !== id));
@@ -55,7 +45,7 @@ export default function Inspections() {
     onError: (error) => {
       console.error('Erro ao excluir inspeção:', error);
       alert('Erro ao excluir inspeção. Tente novamente.');
-    }
+    },
   });
 
   useEffect(() => {
