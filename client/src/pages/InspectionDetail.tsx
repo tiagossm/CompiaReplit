@@ -28,11 +28,11 @@ import {
 import type { Inspection } from "@shared/schema";
 
 export default function InspectionDetail() {
-  const [match, params] = useRoute('/inspections/:id');
+  const [match, params] = useRoute<{ id: string }>('/inspections/:id');
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const inspectionId = params?.id;
+  const inspectionId = params ? params.id : undefined;
 
   const { data: inspection, isLoading, error } = useQuery<Inspection>({
     queryKey: ['/api/inspections', inspectionId],
@@ -147,6 +147,8 @@ export default function InspectionDetail() {
       </div>
     );
   }
+
+  const hasChecklistItems = Array.isArray(inspection.checklist) && inspection.checklist.length > 0;
 
   return (
     <TooltipProvider>
@@ -353,7 +355,7 @@ export default function InspectionDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {inspection.checklist ? (
+              {hasChecklistItems ? (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
