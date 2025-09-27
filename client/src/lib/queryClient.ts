@@ -74,17 +74,23 @@ export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunc
     let url = "";
 
     pathSegments.forEach((segment, index) => {
+      const normalizedSegment = segment.replace(/^\/+/, "");
+
       if (index === 0) {
-        url = segment;
+        if (/^https?:\/\//.test(segment)) {
+          url = segment;
+        } else if (segment.startsWith("/")) {
+          url = segment;
+        } else {
+          url = `/${normalizedSegment}`;
+        }
         return;
       }
 
-      const normalizedSegment = segment.replace(/^\/+/, "");
-      if (url.endsWith("/")) {
-        url = `${url}${normalizedSegment}`;
-      } else {
-        url = `${url}/${normalizedSegment}`;
+      if (!url.endsWith("/")) {
+        url += "/";
       }
+      url += normalizedSegment;
     });
 
     const searchParams = new URLSearchParams();
