@@ -17,117 +17,84 @@ type UnknownRecord = Record<string, unknown>;
 
 const INVITATION_EXPIRATION_DAYS = 7;
 
-function parseDate(input: unknown, fallback: Date | null = null): Date | null {
-  if (input instanceof Date) {
-    return input;
-  }
+/* ----------------- UTILITÁRIOS ----------------- */
 
+function parseDate(input: unknown, fallback: Date | null = null): Date | null {
+  if (input instanceof Date) return input;
   if (typeof input === "string" && input.trim().length > 0) {
     const parsed = new Date(input);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
+    if (!Number.isNaN(parsed.getTime())) return parsed;
   }
-
   if (typeof input === "number" && Number.isFinite(input)) {
     const parsed = new Date(input);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
+    if (!Number.isNaN(parsed.getTime())) return parsed;
   }
-
   return fallback;
 }
 
 function parseNumber(input: unknown, fallback: number | null = null): number | null {
-  if (typeof input === "number" && Number.isFinite(input)) {
-    return input;
-  }
-
+  if (typeof input === "number" && Number.isFinite(input)) return input;
   if (typeof input === "string" && input.trim().length > 0) {
     const parsed = Number(input);
-    if (!Number.isNaN(parsed)) {
-      return parsed;
-    }
+    if (!Number.isNaN(parsed)) return parsed;
   }
-
   return fallback;
 }
 
 function parseBoolean(input: unknown, fallback: boolean): boolean {
-  if (typeof input === "boolean") {
-    return input;
-  }
-
+  if (typeof input === "boolean") return input;
   if (typeof input === "string") {
     const normalized = input.trim().toLowerCase();
     if (normalized === "true") return true;
     if (normalized === "false") return false;
   }
-
   return fallback;
 }
 
 function ensureArray<T>(input: unknown, fallback: T[]): T[] {
-  if (Array.isArray(input)) {
-    return input as T[];
-  }
-
+  if (Array.isArray(input)) return input as T[];
   if (typeof input === "string") {
     try {
       const parsed = JSON.parse(input);
-      if (Array.isArray(parsed)) {
-        return parsed as T[];
-      }
+      if (Array.isArray(parsed)) return parsed as T[];
     } catch {
-      // Ignore parsing errors and fall back to default
+      // ignora erro e usa fallback
     }
   }
-
   return fallback;
 }
 
 function ensureObject<T extends UnknownRecord>(input: unknown, fallback: T): T {
-  if (input && typeof input === "object" && !Array.isArray(input)) {
-    return input as T;
-  }
-
+  if (input && typeof input === "object" && !Array.isArray(input)) return input as T;
   if (typeof input === "string") {
     try {
       const parsed = JSON.parse(input);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as T;
-      }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as T;
     } catch {
-      // Ignore parsing errors and fall back to default
+      // ignora erro e usa fallback
     }
   }
-
   return fallback;
 }
 
 function normalizeNullableString(value: unknown): string | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
+  if (value === undefined || value === null) return null;
   const str = String(value).trim();
   return str.length > 0 ? str : null;
 }
 
 function normalizeId(value: unknown): string {
-  if (typeof value === "string" && value.length > 0) {
-    return value;
-  }
-  return randomUUID();
+  return typeof value === "string" && value.length > 0 ? value : randomUUID();
 }
 
 function now(): Date {
   return new Date();
 }
 
-export function prepareOrganization(org: Partial<InsertOrganization> & UnknownRecord): UnknownRecord {
-  const timestamp = now();
+/* ----------------- PREPARES ----------------- */
 
+export function prepareOrganization(org: Partial<InsertOrganization> & UnknownRecord): InsertOrganization {
+  const timestamp = now();
   return {
     id: normalizeId(org.id),
     name: org.name ?? "",
@@ -146,9 +113,8 @@ export function prepareOrganization(org: Partial<InsertOrganization> & UnknownRe
   };
 }
 
-export function prepareUser(user: Partial<InsertUser> & UnknownRecord): UnknownRecord {
+export function prepareUser(user: Partial<InsertUser> & UnknownRecord): InsertUser {
   const timestamp = now();
-
   return {
     id: normalizeId(user.id),
     email: user.email ?? "",
@@ -162,92 +128,88 @@ export function prepareUser(user: Partial<InsertUser> & UnknownRecord): UnknownR
   };
 }
 
-export function prepareInvitation(invitation: Partial<InsertInvitation> & UnknownRecord): UnknownRecord {
+export function prepareInvitation(inv: Partial<InsertInvitation> & UnknownRecord): InsertInvitation {
   const timestamp = now();
-  const expiresAt = parseDate(invitation.expiresAt) ?? (() => {
+  const expiresAt = parseDate(inv.expiresAt) ?? (() => {
     const expiry = new Date(timestamp);
     expiry.setDate(expiry.getDate() + INVITATION_EXPIRATION_DAYS);
     return expiry;
   })();
-
   return {
-    id: normalizeId(invitation.id),
-    email: invitation.email ?? "",
-    role: invitation.role ?? "client",
-    organizationId: invitation.organizationId ?? "",
-    invitedBy: invitation.invitedBy ?? "",
-    token: normalizeNullableString(invitation.token) ?? randomUUID(),
-    isAccepted: parseBoolean(invitation.isAccepted, false),
+    id: normalizeId(inv.id),
+    email: inv.email ?? "",
+    role: inv.role ?? "client",
+    organizationId: inv.organizationId ?? "",
+    invitedBy: inv.invitedBy ?? "",
+    token: normalizeNullableString(inv.token) ?? randomUUID(),
+    isAccepted: parseBoolean(inv.isAccepted, false),
     expiresAt,
-    createdAt: parseDate(invitation.createdAt, timestamp) ?? timestamp
+    createdAt: parseDate(inv.createdAt, timestamp) ?? timestamp
   };
 }
 
-export function prepareInspection(inspection: Partial<InsertInspection> & UnknownRecord): UnknownRecord {
+export function prepareInspection(ins: Partial<InsertInspection> & UnknownRecord): InsertInspection {
   const timestamp = now();
-
   return {
-    id: normalizeId(inspection.id),
-    title: inspection.title ?? "",
-    description: normalizeNullableString(inspection.description),
-    location: inspection.location ?? "",
-    status: inspection.status ?? "draft",
-    organizationId: inspection.organizationId ?? "",
-    inspectorId: inspection.inspectorId ?? "admin-id",
-    checklist: ensureArray(inspection.checklist, []),
-    findings: ensureArray(inspection.findings, []),
-    recommendations: normalizeNullableString(inspection.recommendations),
-    aiAnalysis: normalizeNullableString(inspection.aiAnalysis),
-    qrCode: normalizeNullableString(inspection.qrCode),
-    scheduledAt: parseDate(inspection.scheduledAt, timestamp) ?? timestamp,
-    startedAt: parseDate(inspection.startedAt),
-    completedAt: parseDate(inspection.completedAt),
-    createdAt: parseDate(inspection.createdAt, timestamp) ?? timestamp,
-    updatedAt: parseDate(inspection.updatedAt, timestamp) ?? timestamp,
-    checklistTemplateId: normalizeNullableString(inspection.checklistTemplateId),
-    priority: inspection.priority ?? "medium",
-    companyName: normalizeNullableString(inspection.companyName),
-    zipCode: normalizeNullableString(inspection.zipCode),
-    fullAddress: normalizeNullableString(inspection.fullAddress),
-    latitude: parseNumber(inspection.latitude),
-    longitude: parseNumber(inspection.longitude),
-    technicianName: normalizeNullableString(inspection.technicianName),
-    technicianEmail: normalizeNullableString(inspection.technicianEmail),
-    companyResponsibleName: normalizeNullableString(inspection.companyResponsibleName),
-    aiAssistantId: inspection.aiAssistantId ?? "GENERAL",
-    actionPlanType: inspection.actionPlanType ?? "5W2H"
+    id: normalizeId(ins.id),
+    title: ins.title ?? "",
+    description: normalizeNullableString(ins.description),
+    location: ins.location ?? "",
+    status: ins.status ?? "draft",
+    organizationId: ins.organizationId ?? "",
+    inspectorId: ins.inspectorId ?? "admin-id",
+    checklist: ensureArray(ins.checklist, []),
+    findings: ensureArray(ins.findings, []),
+    recommendations: normalizeNullableString(ins.recommendations),
+    aiAnalysis: normalizeNullableString(ins.aiAnalysis),
+    qrCode: normalizeNullableString(ins.qrCode),
+    scheduledAt: parseDate(ins.scheduledAt, timestamp) ?? timestamp,
+    startedAt: parseDate(ins.startedAt),
+    completedAt: parseDate(ins.completedAt),
+    createdAt: parseDate(ins.createdAt, timestamp) ?? timestamp,
+    updatedAt: parseDate(ins.updatedAt, timestamp) ?? timestamp,
+    checklistTemplateId: normalizeNullableString(ins.checklistTemplateId),
+    priority: ins.priority ?? "medium",
+    companyName: normalizeNullableString(ins.companyName),
+    zipCode: normalizeNullableString(ins.zipCode),
+    fullAddress: normalizeNullableString(ins.fullAddress),
+    latitude: parseNumber(ins.latitude),
+    longitude: parseNumber(ins.longitude),
+    technicianName: normalizeNullableString(ins.technicianName),
+    technicianEmail: normalizeNullableString(ins.technicianEmail),
+    companyResponsibleName: normalizeNullableString(ins.companyResponsibleName),
+    aiAssistantId: ins.aiAssistantId ?? "GENERAL",
+    actionPlanType: ins.actionPlanType ?? "5W2H"
   };
 }
 
-export function prepareActionPlan(actionPlan: Partial<InsertActionPlan> & UnknownRecord): UnknownRecord {
+export function prepareActionPlan(ap: Partial<InsertActionPlan> & UnknownRecord): InsertActionPlan {
   const timestamp = now();
-
   return {
-    id: normalizeId(actionPlan.id),
-    inspectionId: actionPlan.inspectionId ?? "",
-    title: actionPlan.title ?? "",
-    description: normalizeNullableString(actionPlan.description),
-    what: actionPlan.what ?? "",
-    why: actionPlan.why ?? "",
-    where: actionPlan.where ?? "",
-    when: parseDate(actionPlan.when, timestamp) ?? timestamp,
-    who: actionPlan.who ?? "",
-    how: actionPlan.how ?? "",
-    howMuch: normalizeNullableString(actionPlan.howMuch),
-    status: actionPlan.status ?? "pending",
-    priority: actionPlan.priority ?? "medium",
-    organizationId: actionPlan.organizationId ?? "",
-    assignedTo: normalizeNullableString(actionPlan.assignedTo),
-    dueDate: parseDate(actionPlan.dueDate),
-    completedAt: parseDate(actionPlan.completedAt, null),
-    createdAt: parseDate(actionPlan.createdAt, timestamp) ?? timestamp,
-    updatedAt: parseDate(actionPlan.updatedAt, timestamp) ?? timestamp
+    id: normalizeId(ap.id),
+    inspectionId: ap.inspectionId ?? "",
+    title: ap.title ?? "",
+    description: normalizeNullableString(ap.description),
+    what: ap.what ?? "",
+    why: ap.why ?? "",
+    where: ap.where ?? "",
+    when: parseDate(ap.when, timestamp) ?? timestamp,
+    who: ap.who ?? "",
+    how: ap.how ?? "",
+    howMuch: normalizeNullableString(ap.howMuch),
+    status: ap.status ?? "pending",
+    priority: ap.priority ?? "medium",
+    organizationId: ap.organizationId ?? "",
+    assignedTo: normalizeNullableString(ap.assignedTo),
+    dueDate: parseDate(ap.dueDate),
+    completedAt: parseDate(ap.completedAt, null),
+    createdAt: parseDate(ap.createdAt, timestamp) ?? timestamp,
+    updatedAt: parseDate(ap.updatedAt, timestamp) ?? timestamp
   };
 }
 
-export function prepareFile(file: Partial<InsertFile> & UnknownRecord): UnknownRecord {
+export function prepareFile(file: Partial<InsertFile> & UnknownRecord): InsertFile {
   const timestamp = now();
-
   return {
     id: normalizeId(file.id),
     name: file.name ?? "",
@@ -262,59 +224,56 @@ export function prepareFile(file: Partial<InsertFile> & UnknownRecord): UnknownR
   };
 }
 
-export function prepareChecklistTemplate(template: Partial<InsertChecklistTemplate> & UnknownRecord): UnknownRecord {
+export function prepareChecklistTemplate(t: Partial<InsertChecklistTemplate> & UnknownRecord): InsertChecklistTemplate {
   const timestamp = now();
-
   return {
-    id: normalizeId(template.id),
-    name: template.name ?? "",
-    description: normalizeNullableString(template.description),
-    category: template.category ?? "",
-    folderId: normalizeNullableString(template.folderId),
-    organizationId: template.organizationId ?? "",
-    items: ensureArray(template.items, []),
-    tags: ensureArray(template.tags, []),
-    version: parseNumber(template.version, 1) ?? 1,
-    parentTemplateId: normalizeNullableString(template.parentTemplateId),
-    isActive: parseBoolean(template.isActive, true),
-    isDefault: parseBoolean(template.isDefault, false),
-    isPublic: parseBoolean(template.isPublic, false),
-    parentCategoryId: normalizeNullableString(template.parentCategoryId),
-    categoryPath: normalizeNullableString(template.categoryPath),
-    isCategoryFolder: parseBoolean(template.isCategoryFolder, false),
-    folderColor: template.folderColor ?? "#3B82F6",
-    folderIcon: template.folderIcon ?? "folder",
-    displayOrder: parseNumber(template.displayOrder, 0) ?? 0,
-    fieldCount: parseNumber(template.fieldCount, 0) ?? 0,
-    usageCount: parseNumber(template.usageCount, 0) ?? 0,
-    lastUsedAt: parseDate(template.lastUsedAt),
-    createdBy: template.createdBy ?? "",
-    createdAt: parseDate(template.createdAt, timestamp) ?? timestamp,
-    updatedAt: parseDate(template.updatedAt, timestamp) ?? timestamp
+    id: normalizeId(t.id),
+    name: t.name ?? "",
+    description: normalizeNullableString(t.description),
+    category: t.category ?? "",
+    folderId: normalizeNullableString(t.folderId),
+    organizationId: t.organizationId ?? "",
+    items: ensureArray(t.items, []),
+    tags: ensureArray(t.tags, []),
+    version: parseNumber(t.version, 1) ?? 1,
+    parentTemplateId: normalizeNullableString(t.parentTemplateId),
+    isActive: parseBoolean(t.isActive, true),
+    isDefault: parseBoolean(t.isDefault, false),
+    isPublic: parseBoolean(t.isPublic, false),
+    parentCategoryId: normalizeNullableString(t.parentCategoryId),
+    categoryPath: normalizeNullableString(t.categoryPath),
+    isCategoryFolder: parseBoolean(t.isCategoryFolder, false),
+    folderColor: t.folderColor ?? "#3B82F6",
+    folderIcon: t.folderIcon ?? "folder",
+    displayOrder: parseNumber(t.displayOrder, 0) ?? 0,
+    fieldCount: parseNumber(t.fieldCount, 0) ?? 0,
+    usageCount: parseNumber(t.usageCount, 0) ?? 0,
+    lastUsedAt: parseDate(t.lastUsedAt),
+    createdBy: t.createdBy ?? "",
+    createdAt: parseDate(t.createdAt, timestamp) ?? timestamp,
+    updatedAt: parseDate(t.updatedAt, timestamp) ?? timestamp
   };
 }
 
-export function prepareChecklistFolder(folder: Partial<InsertChecklistFolder> & UnknownRecord): UnknownRecord {
+export function prepareChecklistFolder(f: Partial<InsertChecklistFolder> & UnknownRecord): InsertChecklistFolder {
   const timestamp = now();
-
   return {
-    id: normalizeId(folder.id),
-    name: folder.name ?? "",
-    description: normalizeNullableString(folder.description),
-    parentId: normalizeNullableString(folder.parentId),
-    organizationId: folder.organizationId ?? "",
-    icon: folder.icon ?? "folder",
-    color: folder.color ?? "#3B82F6",
-    order: parseNumber(folder.order, 0) ?? 0,
-    createdBy: folder.createdBy ?? "",
-    createdAt: parseDate(folder.createdAt, timestamp) ?? timestamp,
-    updatedAt: parseDate(folder.updatedAt, timestamp) ?? timestamp
+    id: normalizeId(f.id),
+    name: f.name ?? "",
+    description: normalizeNullableString(f.description),
+    parentId: normalizeNullableString(f.parentId),
+    organizationId: f.organizationId ?? "",
+    icon: f.icon ?? "folder",
+    color: f.color ?? "#3B82F6",
+    order: parseNumber(f.order, 0) ?? 0,
+    createdBy: f.createdBy ?? "",
+    createdAt: parseDate(f.createdAt, timestamp) ?? timestamp,
+    updatedAt: parseDate(f.updatedAt, timestamp) ?? timestamp
   };
 }
 
-export function prepareActivityLog(log: Partial<InsertActivityLog> & UnknownRecord): UnknownRecord {
+export function prepareActivityLog(log: Partial<InsertActivityLog> & UnknownRecord): InsertActivityLog {
   const timestamp = now();
-
   return {
     id: normalizeId(log.id),
     userId: log.userId ?? "",
@@ -327,59 +286,57 @@ export function prepareActivityLog(log: Partial<InsertActivityLog> & UnknownReco
   };
 }
 
-export function prepareCompany(company: Partial<InsertCompany> & UnknownRecord): UnknownRecord {
+export function prepareCompany(c: Partial<InsertCompany> & UnknownRecord): InsertCompany {
   const timestamp = now();
-
   return {
-    id: normalizeId(company.id),
-    name: company.name ?? "",
-    cnpj: normalizeNullableString(company.cnpj),
-    email: normalizeNullableString(company.email),
-    phone: normalizeNullableString(company.phone),
-    website: normalizeNullableString(company.website),
-    address: normalizeNullableString(company.address),
-    city: normalizeNullableString(company.city),
-    state: normalizeNullableString(company.state),
-    zipCode: normalizeNullableString(company.zipCode),
-    responsibleName: normalizeNullableString(company.responsibleName),
-    responsibleRole: normalizeNullableString(company.responsibleRole),
-    responsibleEmail: normalizeNullableString(company.responsibleEmail),
-    responsiblePhone: normalizeNullableString(company.responsiblePhone),
-    technicalResponsibleName: normalizeNullableString(company.technicalResponsibleName),
-    technicalResponsibleRole: normalizeNullableString(company.technicalResponsibleRole),
-    technicalResponsibleEmail: normalizeNullableString(company.technicalResponsibleEmail),
-    technicalResponsiblePhone: normalizeNullableString(company.technicalResponsiblePhone),
-    technicalResponsibleCertification: normalizeNullableString(company.technicalResponsibleCertification),
-    organizationId: company.organizationId ?? "",
-    isActive: parseBoolean(company.isActive, true),
-    notes: normalizeNullableString(company.notes),
-    createdBy: company.createdBy ?? "",
-    createdAt: parseDate(company.createdAt, timestamp) ?? timestamp,
-    updatedAt: parseDate(company.updatedAt, timestamp) ?? timestamp
+    id: normalizeId(c.id),
+    name: c.name ?? "",
+    cnpj: normalizeNullableString(c.cnpj),
+    email: normalizeNullableString(c.email),
+    phone: normalizeNullableString(c.phone),
+    website: normalizeNullableString(c.website),
+    address: normalizeNullableString(c.address),
+    city: normalizeNullableString(c.city),
+    state: normalizeNullableString(c.state),
+    zipCode: normalizeNullableString(c.zipCode),
+    responsibleName: normalizeNullableString(c.responsibleName),
+    responsibleRole: normalizeNullableString(c.responsibleRole),
+    responsibleEmail: normalizeNullableString(c.responsibleEmail),
+    responsiblePhone: normalizeNullableString(c.responsiblePhone),
+    technicalResponsibleName: normalizeNullableString(c.technicalResponsibleName),
+    technicalResponsibleRole: normalizeNullableString(c.technicalResponsibleRole),
+    technicalResponsibleEmail: normalizeNullableString(c.technicalResponsibleEmail),
+    technicalResponsiblePhone: normalizeNullableString(c.technicalResponsiblePhone),
+    technicalResponsibleCertification: normalizeNullableString(c.technicalResponsibleCertification),
+    organizationId: c.organizationId ?? "",
+    isActive: parseBoolean(c.isActive, true),
+    notes: normalizeNullableString(c.notes),
+    createdBy: c.createdBy ?? "",
+    createdAt: parseDate(c.createdAt, timestamp) ?? timestamp,
+    updatedAt: parseDate(c.updatedAt, timestamp) ?? timestamp
   };
 }
 
-export function prepareCompanyLocation(location: Partial<InsertCompanyLocation> & UnknownRecord): UnknownRecord {
+export function prepareCompanyLocation(loc: Partial<InsertCompanyLocation> & UnknownRecord): InsertCompanyLocation {
   const timestamp = now();
-
   return {
-    id: normalizeId(location.id),
-    companyId: location.companyId ?? "",
-    name: location.name ?? "",
-    type: normalizeNullableString(location.type),
-    address: normalizeNullableString(location.address),
-    city: normalizeNullableString(location.city),
-    state: normalizeNullableString(location.state),
-    zipCode: normalizeNullableString(location.zipCode),
-    latitude: parseNumber(location.latitude),
-    longitude: parseNumber(location.longitude),
-    responsibleName: normalizeNullableString(location.responsibleName),
-    responsiblePhone: normalizeNullableString(location.responsiblePhone),
-    responsibleEmail: normalizeNullableString(location.responsibleEmail),
-    isActive: parseBoolean(location.isActive, true),
-    notes: normalizeNullableString(location.notes),
-    createdBy: location.createdBy ?? "",
-    createdAt: parseDate(location.createdAt, timestamp) ?? timestamp,
-    updatedAt: parseDate(location.updatedAt, timestamp) ?? timestamp
+    id: normalizeId(loc.id),
+    companyId: loc.companyId ?? "",
+    name: loc.name ?? "",
+    type: normalizeNullableString(loc.type),
+    address: normalizeNullableString(loc.address),
+    city: normalizeNullableString(loc.city),
+    state: normalizeNullableString(loc.state),
+    zipCode: normalizeNullableString(loc.zipCode),
+    latitude: parseNumber(loc.latitude),
+    longitude: parseNumber(loc.longitude),
+    responsibleName: normalizeNullableString(loc.responsibleName),
+    responsiblePhone: normalizeNullableString(loc.responsiblePhone),
+    responsibleEmail: normalizeNullableString(loc.responsibleEmail),
+    isActive: parseBoolean(loc.isActive, true),
+    notes: normalizeNullableString(loc.notes),
+    createdBy: loc.createdBy ?? "",
+    createdAt: parseDate(loc.createdAt, timestamp) ?? timestamp,
+    updatedAt: parseDate(loc.updatedAt, timestamp) ?? timestamp
   };
 }
