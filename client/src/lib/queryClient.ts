@@ -10,11 +10,11 @@ async function throwIfResNotOk(res: Response) {
 // apiRequest supports two calling styles used across the codebase:
 // 1) apiRequest(url, method, data)
 // 2) apiRequest(url, fetchOptions)
-export async function apiRequest(
+export async function apiRequest<T = any>(
   url: string,
   methodOrOptions?: string | RequestInit,
   data?: unknown,
-): Promise<any> {
+): Promise<T> {
   let options: RequestInit = { credentials: "include" };
 
   if (typeof methodOrOptions === "string") {
@@ -38,7 +38,7 @@ export async function apiRequest(
   if (ct.includes("application/json")) {
     return res.json();
   }
-  return res.text();
+  return res.text() as T;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -121,4 +121,13 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: fa
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      retry: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
