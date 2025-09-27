@@ -48,7 +48,45 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    let url: string;
+
+    if (typeof queryKey === "string") {
+      url = queryKey;
+    } else if (Array.isArray(queryKey)) {
+      const [path, params, ...rest] = queryKey;
+
+      if (
+        typeof path === "string" &&
+        params &&
+        typeof params === "object" &&
+        !Array.isArray(params) &&
+        rest.length === 0
+      ) {
+        const searchParams = new URLSearchParams();
+
+        for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+          if (value === undefined || value === null) continue;
+
+          if (Array.isArray(value)) {
+            for (const item of value) {
+              if (item === undefined || item === null) continue;
+              searchParams.append(key, String(item));
+            }
+          } else {
+            searchParams.append(key, String(value));
+          }
+        }
+
+        const search = searchParams.toString();
+        url = search ? `${path}?${search}` : path;
+      } else {
+        url = queryKey.map(segment => String(segment)).join("/");
+      }
+    } else {
+      url = String(queryKey as any);
+    }
+
+    const res = await fetch(url, {
       credentials: "include",
     });
 
