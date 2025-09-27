@@ -1,5 +1,111 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+function appendSearchParam(params: URLSearchParams, key: string, value: unknown) {
+  if (value === undefined || value === null) return;
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => appendSearchParam(params, key, item));
+    return;
+  }
+
+  if (value instanceof Date) {
+    params.append(key, value.toISOString());
+    return;
+  }
+
+  if (value && typeof value === "object") {
+    params.append(key, JSON.stringify(value));
+    return;
+  }
+
+  params.append(key, String(value));
+}
+
+function normalisePath(base: string, segment: string): string {
+  if (!base) return segment;
+  if (!segment) return base;
+
+  if (base.endsWith("/")) {
+    return segment.startsWith("/") ? `${base}${segment.slice(1)}` : `${base}${segment}`;
+  }
+
+  return segment.startsWith("/") ? `${base}${segment}` : `${base}/${segment}`;
+}
+
+export function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
+  if (!queryKey.length) {
+    throw new Error("Query key must not be empty");
+  }
+
+  const searchParams = new URLSearchParams();
+  const pathSegments: string[] = [];
+
+  queryKey.forEach((segment, index) => {
+    if (segment === undefined || segment === null) return;
+
+    if (typeof segment === "string") {
+      const queryStart = segment.indexOf("?");
+      const hasQuery = queryStart !== -1;
+      const pathPart = hasQuery ? segment.slice(0, queryStart) : segment;
+      const queryString = hasQuery ? segment.slice(queryStart + 1) : "";
+
+      if (pathPart) {
+        pathSegments.push(pathPart);
+      } else if (index === 0 && pathSegments.length === 0) {
+        pathSegments.push("");
+      }
+
+      if (queryString) {
+        const params = new URLSearchParams(queryString);
+        params.forEach((value, key) => searchParams.append(key, value));
+      }
+      return;
+    }
+
+    if (typeof segment === "number" || typeof segment === "boolean") {
+      pathSegments.push(String(segment));
+      return;
+    }
+
+    if (segment instanceof URLSearchParams) {
+      segment.forEach((value, key) => searchParams.append(key, value));
+      return;
+    }
+
+    if (Array.isArray(segment)) {
+      segment.forEach((value) => {
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          pathSegments.push(String(value));
+        } else if (value instanceof URLSearchParams) {
+          value.forEach((v, key) => searchParams.append(key, v));
+        } else if (value && typeof value === "object") {
+          Object.entries(value as Record<string, unknown>).forEach(([key, val]) =>
+            appendSearchParam(searchParams, key, val),
+          );
+        }
+      });
+      return;
+    }
+
+    if (typeof segment === "object") {
+      Object.entries(segment as Record<string, unknown>).forEach(([key, value]) =>
+        appendSearchParam(searchParams, key, value),
+      );
+      return;
+    }
+
+    pathSegments.push(String(segment));
+  });
+
+  const path = pathSegments.reduce((acc, segment, idx) => {
+    if (idx === 0) return segment;
+    return normalisePath(acc, segment);
+  }, "");
+
+  const queryString = searchParams.toString();
+  return queryString ? (path.includes("?") ? `${path}&${queryString}` : `${path}?${queryString}`) : path;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -43,71 +149,12 @@ export async function apiRequest<T = any>(
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 
-// Função para montar a URL a partir do queryKey
-function buildRequestUrl(queryKey: unknown): string {
-  if (typeof queryKey === "string") {
-    return queryKey;
-  }
-
-  if (Array.isArray(queryKey)) {
-    const parts = queryKey.filter((p) => p !== null && p !== undefined);
-
-    const pathSegments: string[] = [];
-    const paramObjects: Array<Record<string, unknown>> = [];
-
-    for (const part of parts) {
-      if (typeof part === "string" || typeof part === "number") {
-        pathSegments.push(String(part));
-      } else if (typeof part === "object" && !Array.isArray(part)) {
-        paramObjects.push(part as Record<string, unknown>);
-      }
-    }
-
-    // monta o path
-    let url = pathSegments
-      .map((s, i) => (i === 0 && /^https?:\/\//.test(s) ? s : encodeURIComponent(s)))
-      .join("/");
-
-    if (!url.startsWith("http") && !url.startsWith("/")) {
-      url = "/" + url;
-    }
-
-    // monta query string
-    const searchParams = new URLSearchParams();
-    for (const params of paramObjects) {
-      for (const [key, value] of Object.entries(params)) {
-        if (value === undefined || value === null) continue;
-
-        if (Array.isArray(value)) {
-          value.forEach((item) => {
-            if (item !== undefined && item !== null) {
-              searchParams.append(key, String(item));
-            }
-          });
-        } else if (typeof value === "object") {
-          searchParams.append(key, JSON.stringify(value));
-        } else {
-          searchParams.append(key, String(value));
-        }
-      }
-    }
-
-    const queryString = searchParams.toString();
-    return queryString ? `${url}?${queryString}` : url;
-  }
-
-  return String(queryKey ?? "");
-}
-
 // Query function genérica
 export const getQueryFn: (options: { on401: UnauthorizedBehavior }) => QueryFunction<any> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const requestUrl = buildRequestUrl(queryKey);
-
-    const res = await fetch(requestUrl, {
-      credentials: "include",
-    });
+    const url = buildUrlFromQueryKey(queryKey);
+    const res = await fetch(url, { credentials: "include" });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
